@@ -21,7 +21,7 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: ListenableBuilder(
-          listenable: controller,
+          listenable: Listenable.merge([controller, controller.secondTick]),
           builder: (context, _) {
             return Column(
               children: [

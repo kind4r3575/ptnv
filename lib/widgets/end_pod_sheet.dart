@@ -216,7 +216,7 @@ class _EndPodSheetState extends State<EndPodSheet> {
                 children: [
                   Text('PLANNED', style: AppText.statLabel),
                   const SizedBox(height: 2),
-                  Text('${PodSession.durationHours}h',
+                  Text('${session.durationHours}h',
                       style: AppText.statValue.copyWith(fontSize: 16, color: AppColors.slate)),
                 ],
               ),

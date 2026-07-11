@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import '../state/pod.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/home_parts.dart';
+import '../widgets/option_picker_sheet.dart';
 
 /// The Settings screen (Figma node `213:83`). Every control in Pod Settings,
 /// Notifications, Reminders and Language & Format is functional and persists on
@@ -17,15 +19,33 @@ class SettingsScreen extends StatelessWidget {
 
   // Cycle option sets for the value + chevron rows.
   static const List<String> _podTypes = ['Omnipod · 72h', 'Omnipod 5 · 72h', 'Dana · 72h'];
-  static const List<int> _graceOptions = [1, 2, 4, 8];
+  static const List<int> _graceOptions = [0, 1, 2, 4, 8];
   static const List<String> _snoozeOptions = ['5 min', '10 min', '15 min', '30 min'];
   static const List<String> _languages = ['English', 'Українська', 'Español'];
   static const List<String> _timeFormats = ['24-hour', '12-hour'];
   static const List<String> _dateFormats = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
 
-  static T _next<T>(List<T> options, T current) {
-    final i = options.indexOf(current);
-    return options[(i + 1) % options.length];
+  static String _graceLabel(int h) =>
+      h == 0 ? 'None' : (h == 1 ? '1 hour' : '$h hours');
+
+  /// Open the bottom-sheet picker for a string-valued row and apply the choice.
+  Future<void> _pickString(
+    BuildContext context, {
+    required String title,
+    String? subtitle,
+    required List<String> options,
+    required String current,
+    required ValueChanged<String> onPicked,
+  }) async {
+    final picked = await showOptionPickerSheet<String>(
+      context: context,
+      title: title,
+      subtitle: subtitle,
+      options: options,
+      selected: current,
+      labelOf: (v) => v,
+    );
+    if (picked != null) onPicked(picked);
   }
 
   void _comingSoon(BuildContext context) {
@@ -76,7 +96,7 @@ class SettingsScreen extends StatelessWidget {
                       _sectionHeader('Language & Format'),
                       _card(child: _languageBlock(context, c)),
                       _sectionHeader('Data & Backup'),
-                      _card(child: _dataBackupBlock(context)),
+                      _card(child: _dataBackupBlock(context, controller)),
                       _sectionHeader('About & Support'),
                       _card(child: _aboutBlock(context)),
                       const SizedBox(height: 20),
@@ -166,13 +186,29 @@ class SettingsScreen extends StatelessWidget {
           _ValueRow(
             label: 'Pod Type',
             value: c.podType,
-            onTap: () => c.setPodType(_next(_podTypes, c.podType)),
+            onTap: () => _pickString(context,
+                title: 'Pod Type',
+                subtitle: 'Choose your pod model and default wear time.',
+                options: _podTypes,
+                current: c.podType,
+                onPicked: c.setPodType),
           ),
           _divider(),
           _ValueRow(
             label: 'Grace Period',
-            value: '${c.gracePeriodHours} hours',
-            onTap: () => c.setGracePeriodHours(_next(_graceOptions, c.gracePeriodHours)),
+            value: _graceLabel(c.gracePeriodHours),
+            onTap: () async {
+              final picked = await showOptionPickerSheet<int>(
+                context: context,
+                title: 'Grace period',
+                subtitle:
+                    'Keep showing the pod as usable for a short time after it expires.',
+                options: _graceOptions,
+                selected: c.gracePeriodHours,
+                labelOf: _graceLabel,
+              );
+              if (picked != null) c.setGracePeriodHours(picked);
+            },
           ),
           _divider(),
           _ToggleRow(
@@ -234,7 +270,12 @@ class SettingsScreen extends StatelessWidget {
           _ValueRow(
             label: 'Snooze Duration',
             value: c.snoozeDuration,
-            onTap: () => c.setSnoozeDuration(_next(_snoozeOptions, c.snoozeDuration)),
+            onTap: () => _pickString(context,
+                title: 'Snooze Duration',
+                subtitle: 'How long to wait before reminding you again.',
+                options: _snoozeOptions,
+                current: c.snoozeDuration,
+                onPicked: c.setSnoozeDuration),
           ),
         ],
       );
@@ -277,34 +318,74 @@ class SettingsScreen extends StatelessWidget {
           _ValueRow(
             label: 'Language',
             value: c.language,
-            onTap: () => c.setLanguage(_next(_languages, c.language)),
+            onTap: () => _pickString(context,
+                title: 'Language',
+                subtitle: 'Choose the app language.',
+                options: _languages,
+                current: c.language,
+                onPicked: c.setLanguage),
           ),
           _divider(),
           _ValueRow(
             label: 'Time Format',
             value: c.timeFormat,
-            onTap: () => c.setTimeFormat(_next(_timeFormats, c.timeFormat)),
+            onTap: () => _pickString(context,
+                title: 'Time Format',
+                subtitle: 'How times are displayed.',
+                options: _timeFormats,
+                current: c.timeFormat,
+                onPicked: c.setTimeFormat),
           ),
           _divider(),
           _ValueRow(
             label: 'Date Format',
             value: c.dateFormat,
-            onTap: () => c.setDateFormat(_next(_dateFormats, c.dateFormat)),
+            onTap: () => _pickString(context,
+                title: 'Date Format',
+                subtitle: 'How dates are displayed.',
+                options: _dateFormats,
+                current: c.dateFormat,
+                onPicked: c.setDateFormat),
           ),
         ],
       );
 
   // --- Data & Backup / About (rows shown, taps = Coming soon) ----------------
 
-  Widget _dataBackupBlock(BuildContext context) => Column(
+  Widget _dataBackupBlock(BuildContext context, PodController c) => Column(
         children: [
           _LinkRow(label: 'Export history as PDF', onTap: () => _comingSoon(context)),
           _divider(),
           _LinkRow(label: 'Export history as CSV', onTap: () => _comingSoon(context)),
           _divider(),
-          _LinkRow(label: 'Clear History', onTap: () => _comingSoon(context)),
+          _LinkRow(
+            label: 'Clear History',
+            onTap: () async {
+              final ok = await showConfirmDialog(
+                context: context,
+                title: 'Clear History?',
+                message:
+                    'This permanently removes every past pod session from your history. This cannot be undone.',
+                confirmLabel: 'Clear',
+                destructive: true,
+              );
+              if (ok == true) c.clearHistory();
+            },
+          ),
           _divider(),
-          _LinkRow(label: 'Reset to Defaults', onTap: () => _comingSoon(context)),
+          _LinkRow(
+            label: 'Reset to Defaults',
+            onTap: () async {
+              final ok = await showConfirmDialog(
+                context: context,
+                title: 'Reset to Defaults?',
+                message:
+                    'All Pod, Notification and Language settings return to their defaults. Your stock and history are kept.',
+                confirmLabel: 'Reset',
+              );
+              if (ok == true) c.resetToDefaults();
+            },
+          ),
         ],
       );
 
@@ -354,9 +435,37 @@ class _NumberBox extends StatefulWidget {
 class _NumberBoxState extends State<_NumberBox> {
   late final TextEditingController _controller =
       TextEditingController(text: '${widget.value}');
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(_NumberBox oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reflect an external value change (e.g. Reset to Defaults) unless the
+    // field already shows it (don't fight the user mid-typing).
+    if (widget.value != oldWidget.value &&
+        int.tryParse(_controller.text.trim()) != widget.value) {
+      _controller.text = '${widget.value}';
+    }
+  }
+
+  void _onFocusChange() {
+    // On blur, if the field is empty/invalid, restore the current value so it
+    // never sits blank with a stale value underneath.
+    if (!_focusNode.hasFocus && int.tryParse(_controller.text.trim()) == null) {
+      _controller.text = '${widget.value}';
+    }
+  }
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -380,6 +489,7 @@ class _NumberBoxState extends State<_NumberBox> {
           Expanded(
             child: TextField(
               controller: _controller,
+              focusNode: _focusNode,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               style: AppText.rowValue.copyWith(fontSize: 18),
@@ -507,9 +617,33 @@ class _ReminderRow extends StatefulWidget {
 class _ReminderRowState extends State<_ReminderRow> {
   late final TextEditingController _controller =
       TextEditingController(text: '${widget.hours}');
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(_ReminderRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.hours != oldWidget.hours &&
+        int.tryParse(_controller.text.trim()) != widget.hours) {
+      _controller.text = '${widget.hours}';
+    }
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus && int.tryParse(_controller.text.trim()) == null) {
+      _controller.text = '${widget.hours}';
+    }
+  }
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -540,6 +674,7 @@ class _ReminderRowState extends State<_ReminderRow> {
                 ),
                 child: TextField(
                   controller: _controller,
+                  focusNode: _focusNode,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   textAlign: TextAlign.center,

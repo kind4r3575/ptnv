@@ -36,7 +36,11 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Poppins typeface used throughout the Pod Tracker design.
-  google_fonts: ^6.2.1
+  google_fonts: ^8.1.0
+
+  # Local persistence for settings, stock, activity, history and the active
+  # session (JSON-encoded), so data survives app restarts.
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:

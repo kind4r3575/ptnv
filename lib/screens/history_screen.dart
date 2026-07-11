@@ -80,7 +80,7 @@ class SessionHistoryCard extends StatelessWidget {
       case HistoryOutcome.wornTooLong:
         return (text: 'Worn ${fmtHm(record.worn - record.planned)} too long', color: AppColors.redText);
       case HistoryOutcome.completed:
-        return (text: 'Worn the full ${PodSession.durationHours}h', color: AppColors.green);
+        return (text: 'Worn the full ${record.planned.inHours}h', color: AppColors.green);
     }
   }
 
@@ -164,7 +164,7 @@ class SessionHistoryCard extends StatelessWidget {
                   children: [
                     Text('PLANNED', style: AppText.statLabel),
                     const SizedBox(height: 2),
-                    Text('${PodSession.durationHours}h',
+                    Text('${record.planned.inHours}h',
                         style: AppText.statValue.copyWith(fontSize: 16, color: AppColors.slate)),
                   ],
                 ),

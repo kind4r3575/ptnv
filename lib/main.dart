@@ -5,7 +5,10 @@ import 'screens/home_screen.dart';
 import 'state/pod.dart';
 import 'theme/tokens.dart';
 
-void main() => runApp(const PodTrackerApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized(); // required before SharedPreferences
+  runApp(const PodTrackerApp());
+}
 
 class PodTrackerApp extends StatefulWidget {
   const PodTrackerApp({super.key});

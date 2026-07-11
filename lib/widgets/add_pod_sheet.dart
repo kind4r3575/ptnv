@@ -47,7 +47,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
       context,
       initial: _start,
       footnote: (d) => 'Pod will expire '
-          '${fmtExpiry(d.add(const Duration(hours: PodSession.durationHours)))}',
+          '${fmtExpiry(d.add(Duration(hours: widget.controller.defaultPodDurationHours)))}',
     );
     if (picked != null && mounted) {
       setState(() {
@@ -69,7 +69,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
   Widget build(BuildContext context) {
     // "Now" → current time; "Custom" → the chosen time. Pod is rated for 72h.
     final start = _start;
-    final expiry = start.add(const Duration(hours: PodSession.durationHours));
+    final expiry = start.add(Duration(hours: widget.controller.defaultPodDurationHours));
 
     return Padding(
       padding: EdgeInsets.only(
@@ -210,7 +210,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
           ),
           const Spacer(),
           Text(
-            '${PodSession.durationHours}h',
+            '${widget.controller.defaultPodDurationHours}h',
             style: AppText.sheetTitle.copyWith(fontSize: 15),
           ),
         ],

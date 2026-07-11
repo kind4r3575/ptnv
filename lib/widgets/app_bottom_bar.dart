@@ -33,14 +33,24 @@ Widget appBottomBar(
     }
   }
 
+  // A fade is direction-agnostic, so navigating up to a tab (push) and back to
+  // Home (pop) animate identically — every tab switch looks the same.
+  Route<void> fadeRoute(Widget page) => PageRouteBuilder<void>(
+        pageBuilder: (_, _, _) => page,
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 250),
+        reverseTransitionDuration: const Duration(milliseconds: 250),
+      );
+
   void goTo(int index) {
     if (index == currentIndex) return;
     final nav = Navigator.of(context);
     if (index == 0) {
-      nav.popUntil((r) => r.isFirst);
+      nav.popUntil((r) => r.isFirst); // pops the fade route → fades back to Home
       return;
     }
-    final route = MaterialPageRoute<void>(builder: (_) => screenFor(index));
+    final route = fadeRoute(screenFor(index));
     if (currentIndex == 0) {
       nav.push(route);
     } else {

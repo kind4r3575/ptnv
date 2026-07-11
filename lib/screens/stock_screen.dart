@@ -109,7 +109,7 @@ class _StockScreenState extends State<StockScreen> {
     if (stock == 0) {
       return (label: 'Out of stock', fg: AppColors.redText, bg: AppColors.redBg);
     }
-    if (stock <= PodController.reorderThreshold) {
+    if (stock <= _c.lowStockThreshold) {
       return (label: 'Low', fg: AppColors.amberText, bg: AppColors.amberBg);
     }
     return (label: 'In stock', fg: AppColors.green, bg: AppColors.green.withValues(alpha: 0.14));
@@ -199,7 +199,7 @@ class _StockScreenState extends State<StockScreen> {
                 const SizedBox(height: 2),
                 Text(
                   'Runs out around ${fmtMonthDay(_c.runsOutDate)} · '
-                  'low at ${PodController.reorderThreshold} pods',
+                  'low at ${_c.lowStockThreshold} pods',
                   style: AppText.caption,
                 ),
               ],
@@ -319,7 +319,7 @@ class _StockScreenState extends State<StockScreen> {
               children: [
                 Text('Remind me to reorder', style: AppText.rowValue),
                 const SizedBox(height: 2),
-                Text('When stock drops to ${PodController.reorderThreshold} pods',
+                Text('When stock drops to ${_c.lowStockThreshold} pods',
                     style: AppText.sheetSubtitle),
               ],
             ),
