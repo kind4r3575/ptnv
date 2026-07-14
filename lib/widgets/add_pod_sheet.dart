@@ -37,7 +37,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
     'Abdomen', 'Left arm', 'Right arm', 'Lower back', 'Left thigh', 'Right thigh',
   ];
 
-  String _selectedSite = 'Abdomen';
+  String? _selectedSite; // null until the user picks a site — required to start
   bool _useNow = true;
   DateTime? _customStart; // set once a custom time is chosen
 
@@ -60,10 +60,11 @@ class _AddPodSheetState extends State<AddPodSheet> {
   }
 
   void _startPod() {
+    if (_selectedSite == null) return; // must pick an insertion site first
     if (widget.controller.stock <= 0) return; // guarded by UI; belt-and-braces
     widget.controller.startPod(
       startedAt: _useNow ? null : _customStart,
-      site: _selectedSite,
+      site: _selectedSite!,
     );
     Navigator.of(context).pop();
   }
@@ -74,9 +75,8 @@ class _AddPodSheetState extends State<AddPodSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // "Now" → current time; "Custom" → the chosen time. Pod is rated for 72h.
+    // "Now" → current time; "Custom" → the chosen time.
     final start = _start;
-    final expiry = start.add(Duration(hours: widget.controller.defaultPodDurationHours));
     final outOfStock = widget.controller.stock <= 0;
 
     return Padding(
@@ -137,24 +137,14 @@ class _AddPodSheetState extends State<AddPodSheet> {
                   onRight: _openCustom,
                 ),
                 const SizedBox(height: 10),
-                Text(fmtStartsAt(start), style: AppText.caption),
-                const SizedBox(height: 14),
-                _expiresCard(expiry),
-                const SizedBox(height: 16),
+                Center(child: Text(fmtStartsAt(start), style: AppText.caption)),
+                const SizedBox(height: 20),
                 if (outOfStock) ...[
                   _outOfStockCard(),
                   const SizedBox(height: 16),
                   _goToStockButton(),
-                ] else ...[
-                  Center(
-                    child: Text(
-                      '${widget.controller.stock} pods in stock — 1 will be used',
-                      style: AppText.caption,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _startButton(),
-                ],
+                ] else
+                  _startButton(enabled: _selectedSite != null),
                 const SizedBox(height: 6),
                 _cancelButton(),
               ],
@@ -197,58 +187,27 @@ class _AddPodSheetState extends State<AddPodSheet> {
     );
   }
 
-  Widget _expiresCard(DateTime expiry) {
-    return Container(
-      height: 54,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.cyanBg,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('POD EXPIRES', style: AppText.statLabel),
-              const SizedBox(height: 2),
-              Text(fmtExpiry(expiry), style: AppText.statValue),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            '${widget.controller.defaultPodDurationHours}h',
-            style: AppText.sheetTitle.copyWith(fontSize: 15),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _startButton() {
+  /// [enabled] is false until the user picks an insertion site — the button
+  /// greys out and taps are ignored so a site choice is required before start.
+  Widget _startButton({required bool enabled}) {
     return GestureDetector(
-      onTap: _startPod,
+      onTap: enabled ? _startPod : null,
       behavior: HitTestBehavior.opaque,
       child: Container(
         height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.blue,
+          color: enabled ? AppColors.blue : AppColors.chipBorder,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.blue.withValues(alpha: 0.35),
-              blurRadius: 9,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                    color: AppColors.blue.withValues(alpha: 0.35),
+                    blurRadius: 9,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
         ),
         child: Text('Start Pod', style: AppText.button.copyWith(fontSize: 16)),
       ),

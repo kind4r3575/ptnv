@@ -55,7 +55,7 @@ class ChipGrid extends StatelessWidget {
   });
 
   final List<String> labels;
-  final String selected;
+  final String? selected;
   final ValueChanged<String> onSelected;
 
   @override

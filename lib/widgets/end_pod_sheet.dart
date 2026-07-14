@@ -37,7 +37,7 @@ class _EndPodSheetState extends State<EndPodSheet> {
     'Planned', 'Blockage', 'Irritation', 'Leak', 'Ran low', 'Other',
   ];
 
-  String _reason = 'Planned';
+  String? _reason; // null until the user picks a reason — required to end
   bool _useNow = true;
   DateTime? _customEnd;
 
@@ -68,9 +68,10 @@ class _EndPodSheetState extends State<EndPodSheet> {
   }
 
   void _endPod() {
+    if (_reason == null) return; // must pick a reason for change first
     widget.controller.endPod(
       endedAt: _useNow ? null : _customEnd,
-      reason: _reason,
+      reason: _reason!,
     );
     Navigator.of(context).pop();
   }
@@ -144,7 +145,7 @@ class _EndPodSheetState extends State<EndPodSheet> {
                 const SizedBox(height: 10),
                 Center(child: Text(fmtEndsAt(_end), style: AppText.caption)),
                 const SizedBox(height: 16),
-                _endButton(),
+                _endButton(enabled: _reason != null),
                 const SizedBox(height: 6),
                 _cancelButton(),
               ],
@@ -240,23 +241,27 @@ class _EndPodSheetState extends State<EndPodSheet> {
     }
   }
 
-  Widget _endButton() {
+  /// [enabled] is false until the user picks a reason for change — the button
+  /// greys out and taps are ignored so a reason is required before ending.
+  Widget _endButton({required bool enabled}) {
     return GestureDetector(
-      onTap: _endPod,
+      onTap: enabled ? _endPod : null,
       behavior: HitTestBehavior.opaque,
       child: Container(
         height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.endRed,
+          color: enabled ? AppColors.endRed : AppColors.chipBorder,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.endRed.withValues(alpha: 0.35),
-              blurRadius: 9,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                    color: AppColors.endRed.withValues(alpha: 0.35),
+                    blurRadius: 9,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
         ),
         child: Text('End Pod', style: AppText.button.copyWith(fontSize: 16)),
       ),
