@@ -503,11 +503,19 @@ class HomeInfoRows extends StatelessWidget {
     required this.stock,
     required this.predictedRunOut,
     required this.reminderText,
+    this.onReminderTap,
+    this.onStockTap,
   });
 
   final int stock;
   final DateTime predictedRunOut;
   final String reminderText;
+
+  /// Opens the Notifications editor from the "Next Reminder" row (Figma 66-431).
+  final VoidCallback? onReminderTap;
+
+  /// Opens the Stock screen from the "Stock" row.
+  final VoidCallback? onStockTap;
 
   @override
   Widget build(BuildContext context) {
@@ -517,6 +525,7 @@ class HomeInfoRows extends StatelessWidget {
           icon: Icons.inventory_2_outlined,
           title: 'Stock',
           value: '$stock pods',
+          onTap: onStockTap,
         ),
         const SizedBox(height: 14),
         _InfoRow(
@@ -529,6 +538,7 @@ class HomeInfoRows extends StatelessWidget {
           icon: Icons.notifications_active_rounded,
           title: 'Next Reminder',
           value: reminderText,
+          onTap: onReminderTap,
         ),
       ],
     );
@@ -536,35 +546,46 @@ class HomeInfoRows extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.title, required this.value});
+  const _InfoRow({required this.icon, required this.title, required this.value, this.onTap});
 
   final IconData icon;
   final String title;
   final String value;
 
+  /// When set, the row is tappable and shows a trailing chevron.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 74,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.cyanBg,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.navy, size: 28),
-          const SizedBox(width: 16),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: AppText.rowTitle),
-              const SizedBox(height: 2),
-              Text(value, style: AppText.rowValue),
-            ],
-          ),
-        ],
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 74,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: AppColors.cyanBg,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.navy, size: 28),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppText.rowTitle),
+                  const SizedBox(height: 2),
+                  Text(value, style: AppText.rowValue),
+                ],
+              ),
+            ),
+            if (onTap != null)
+              const Icon(Icons.chevron_right_rounded, color: AppColors.slate, size: 22),
+          ],
+        ),
       ),
     );
   }

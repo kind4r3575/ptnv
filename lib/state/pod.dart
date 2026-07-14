@@ -4,6 +4,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/notification_service.dart';
+import '../theme/tokens.dart' show AppFormats, fmtClock, fmtWeekdayDate;
+import 'notification_rule.dart';
+
 /// Lifecycle of a pod relative to its wear time.
 ///
 /// A pod is rated for [PodSession.durationHours] (72h). After that it enters an
@@ -190,12 +194,12 @@ class SessionRecord {
 class PodController extends ChangeNotifier {
   PodController() {
     addListener(_scheduleSave); // persist on every real (non-tick) change
+    addListener(_onNotifChange); // keep scheduled notifications in sync
     _boot();
   }
 
   PodSession? _session;
   int _stock = 6;
-  String? _reminder; // null => "None scheduled"
   bool _loading = true;
   Timer? _ticker;
 
@@ -222,16 +226,24 @@ class PodController extends ChangeNotifier {
   Timer? _saveDebounce;
   static const Duration _saveDelay = Duration(milliseconds: 400);
 
+  Timer? _notifDebounce;
+  static const Duration _notifDelay = Duration(milliseconds: 600);
+  bool _lowStockLatch = false; // true while stock is at/below threshold
+
   // Newest-first activity log. Empty on first launch; fills as the user acts.
   final List<StockActivity> _activity = [];
 
   // Newest-first session history. Empty on first launch; fills when pods end.
   final List<SessionRecord> _history = [];
 
+  // Editable notification rules (add/edit/remove in the Notifications editor).
+  final List<NotificationRule> _rules = [];
+
   PodSession? get session => _session;
   int get stock => _stock;
   bool get isLoading => _loading;
-  String get reminderText => _reminder ?? 'None scheduled';
+  List<NotificationRule> get rules => List.unmodifiable(_rules);
+  String get reminderText => _formatNextReminder(nextReminderAt);
   bool get reorderReminder => _reorderReminder;
   List<StockActivity> get activity => List.unmodifiable(_activity);
   List<SessionRecord> get history => List.unmodifiable(_history);
@@ -380,8 +392,23 @@ class PodController extends ChangeNotifier {
   void setSnoozeDuration(String value) =>
       _set(() => _snoozeDuration = value, _snoozeDuration != value);
   void setLanguage(String value) => _set(() => _language = value, _language != value);
-  void setTimeFormat(String value) => _set(() => _timeFormat = value, _timeFormat != value);
-  void setDateFormat(String value) => _set(() => _dateFormat = value, _dateFormat != value);
+  void setTimeFormat(String value) {
+    _set(() => _timeFormat = value, _timeFormat != value);
+    _syncFormats();
+  }
+
+  void setDateFormat(String value) {
+    _set(() => _dateFormat = value, _dateFormat != value);
+    _syncFormats();
+  }
+
+  /// Mirror the current time/date format settings into the ambient [AppFormats]
+  /// holder so every `fmt*` helper across the app renders with the user's
+  /// choice. Called on load, on change, and on reset.
+  void _syncFormats() {
+    AppFormats.use24Hour = _timeFormat != '12-hour';
+    AppFormats.dateStyle = _dateFormat;
+  }
 
   /// Add a new "reminder before expiry" (hours before the 72h end).
   void addReminder(int hours) {
@@ -407,6 +434,92 @@ class PodController extends ChangeNotifier {
     if (!changed) return;
     apply();
     notifyListeners();
+  }
+
+  // --- Notification rules ----------------------------------------------------
+
+  void addRule(NotificationRule rule) {
+    _rules.add(rule);
+    notifyListeners();
+  }
+
+  void updateRule(NotificationRule rule) {
+    final i = _rules.indexWhere((r) => r.id == rule.id);
+    if (i < 0) {
+      _rules.add(rule);
+    } else {
+      _rules[i] = rule;
+    }
+    notifyListeners();
+  }
+
+  void removeRule(String id) {
+    final before = _rules.length;
+    _rules.removeWhere((r) => r.id == id);
+    if (_rules.length != before) notifyListeners();
+  }
+
+  void toggleRule(String id, bool enabled) {
+    final i = _rules.indexWhere((r) => r.id == id);
+    if (i < 0 || _rules[i].enabled == enabled) return;
+    _rules[i].enabled = enabled;
+    notifyListeners();
+  }
+
+  /// The soonest upcoming fire time across all enabled rules, given the current
+  /// session — or null if nothing is scheduled. [lowStock] is condition-based
+  /// and excluded here.
+  DateTime? get nextReminderAt {
+    final now = DateTime.now();
+    DateTime? soonest;
+    for (final r in _rules) {
+      if (!r.enabled) continue;
+      final at = _nextFireFor(r, now);
+      if (at == null || !at.isAfter(now)) continue;
+      if (soonest == null || at.isBefore(soonest)) soonest = at;
+    }
+    return soonest;
+  }
+
+  /// Concrete next fire time for [r] given the current session (public wrapper
+  /// used by the notification scheduler). Null for condition-based rules.
+  DateTime? nextFireFor(NotificationRule r) => _nextFireFor(r, DateTime.now());
+
+  DateTime? _nextFireFor(NotificationRule r, DateTime now) {
+    final s = _session;
+    switch (r.trigger) {
+      case NotificationTrigger.podExpiry:
+        return s?.endAt.subtract(Duration(minutes: r.offsetMinutes));
+      case NotificationTrigger.graceEnding:
+        return s?.graceEndAt.subtract(Duration(minutes: r.offsetMinutes));
+      case NotificationTrigger.podOverdue:
+        return s?.graceEndAt.add(Duration(minutes: r.offsetMinutes));
+      case NotificationTrigger.dailyTime:
+      case NotificationTrigger.siteRotation:
+        return _nextTimeOfDay(now, r.timeOfDayMinutes);
+      case NotificationTrigger.lowStock:
+        return null; // condition-based, fired immediately on stock change
+    }
+  }
+
+  /// The next wall-clock occurrence of [minutesOfDay] at or after [now].
+  DateTime _nextTimeOfDay(DateTime now, int minutesOfDay) {
+    final today = DateTime(now.year, now.month, now.day, minutesOfDay ~/ 60, minutesOfDay % 60);
+    return today.isAfter(now) ? today : today.add(const Duration(days: 1));
+  }
+
+  String _formatNextReminder(DateTime? at) {
+    if (at == null) return 'None scheduled';
+    final now = DateTime.now();
+    final d = at.difference(now);
+    if (d.inMinutes < 1) return 'in under a minute';
+    if (d.inMinutes < 60) return 'in ${d.inMinutes}m';
+    if (d.inHours < 24) return 'in ${d.inHours}h ${d.inMinutes % 60}m';
+    final sameDay = at.year == now.year && at.month == now.month && at.day == now.day;
+    final tomorrow = at.difference(DateTime(now.year, now.month, now.day)).inDays == 1;
+    if (sameDay) return 'Today ${fmtClock(at)}';
+    if (tomorrow) return 'Tomorrow ${fmtClock(at)}';
+    return '${fmtWeekdayDate(at)} ${fmtClock(at)}';
   }
 
   /// Clear the Session History (the "Clear History" action). Stock and settings
@@ -439,6 +552,7 @@ class PodController extends ChangeNotifier {
     _language = 'English';
     _timeFormat = '24-hour';
     _dateFormat = 'DD/MM/YYYY';
+    _syncFormats();
     notifyListeners();
   }
 
@@ -447,8 +561,10 @@ class PodController extends ChangeNotifier {
     _load(); // restore saved state, or keep the seeded defaults on first run
     _loading = false;
     _ready = true;
+    _lowStockLatch = _stock <= _lowStockThreshold; // don't alert for pre-existing low stock
     if (_session != null) _startTicker();
     notifyListeners();
+    NotificationService.instance.sync(this); // schedule from restored rules
   }
 
   // --- Persistence keys ------------------------------------------------------
@@ -471,6 +587,7 @@ class PodController extends ChangeNotifier {
   static const String _kQuiet = 'quietHours';
   static const String _kSnooze = 'snoozeDuration';
   static const String _kReminders = 'reminderHours';
+  static const String _kRules = 'notificationRules';
   static const String _kLanguage = 'language';
   static const String _kTimeFmt = 'timeFormat';
   static const String _kDateFmt = 'dateFormat';
@@ -527,6 +644,43 @@ class PodController extends ChangeNotifier {
     _language = p.getString(_kLanguage) ?? _language;
     _timeFormat = p.getString(_kTimeFmt) ?? _timeFormat;
     _dateFormat = p.getString(_kDateFmt) ?? _dateFormat;
+    _syncFormats();
+
+    final rulesJson = p.getString(_kRules);
+    if (rulesJson != null) {
+      _rules
+        ..clear()
+        ..addAll((jsonDecode(rulesJson) as List)
+            .map((e) => NotificationRule.fromJson(e as Map<String, dynamic>)));
+    } else {
+      _migrateRules(); // first run after this feature: seed from legacy settings
+    }
+  }
+
+  /// One-time seed of notification rules from the pre-editor state: each
+  /// "hours before expiry" reminder, plus Low Stock and Site Rotation, which
+  /// used to be standalone toggles.
+  void _migrateRules() {
+    _rules.clear();
+    final base = DateTime.now().microsecondsSinceEpoch;
+    var seq = 0;
+    for (final h in _reminderHours) {
+      _rules.add(NotificationRule(
+        id: '${base}_${seq++}',
+        trigger: NotificationTrigger.podExpiry,
+        offsetMinutes: h * 60,
+      ));
+    }
+    _rules.add(NotificationRule(
+      id: '${base}_${seq++}',
+      trigger: NotificationTrigger.lowStock,
+      enabled: _lowStockAlert,
+    ));
+    _rules.add(NotificationRule(
+      id: '${base}_${seq++}',
+      trigger: NotificationTrigger.siteRotation,
+      enabled: _siteRotationReminder,
+    ));
   }
 
   /// Debounced save, fired by the self-listener on every real change. Coalesces
@@ -535,6 +689,30 @@ class PodController extends ChangeNotifier {
     if (!_ready) return;
     _saveDebounce?.cancel();
     _saveDebounce = Timer(_saveDelay, _save);
+  }
+
+  /// Fired on every real change: reacts immediately to a low-stock crossing and
+  /// debounces a full reschedule of the timed notifications.
+  void _onNotifChange() {
+    if (!_ready) return;
+    _checkLowStock();
+    _notifDebounce?.cancel();
+    _notifDebounce = Timer(_notifDelay, () => NotificationService.instance.sync(this));
+  }
+
+  /// Fire an immediate low-stock notification once, the moment stock drops to
+  /// the threshold. The latch resets when stock rises above it again.
+  void _checkLowStock() {
+    if (_stock <= _lowStockThreshold) {
+      if (!_lowStockLatch) {
+        _lowStockLatch = true;
+        final hasRule =
+            _rules.any((r) => r.enabled && r.trigger == NotificationTrigger.lowStock);
+        if (hasRule) NotificationService.instance.showLowStockNow(this);
+      }
+    } else {
+      _lowStockLatch = false;
+    }
   }
 
   Future<void> _save() async {
@@ -563,6 +741,7 @@ class PodController extends ChangeNotifier {
     await p.setString(_kSnooze, _snoozeDuration);
     await p.setStringList(
         _kReminders, _reminderHours.map((e) => e.toString()).toList());
+    await p.setString(_kRules, jsonEncode(_rules.map((e) => e.toJson()).toList()));
     await p.setString(_kLanguage, _language);
     await p.setString(_kTimeFmt, _timeFormat);
     await p.setString(_kDateFmt, _dateFormat);
@@ -676,6 +855,7 @@ class PodController extends ChangeNotifier {
     _ticker?.cancel();
     _stockDebounce?.cancel();
     _saveDebounce?.cancel();
+    _notifDebounce?.cancel();
     _tick.dispose();
     super.dispose();
   }

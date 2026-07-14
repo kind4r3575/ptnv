@@ -5,6 +5,8 @@ import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/end_pod_sheet.dart';
 import '../widgets/home_parts.dart';
+import 'notifications_screen.dart';
+import 'stock_screen.dart';
 
 /// The Home page. Renders one of five states driven by [PodController]:
 /// loading skeleton, no-active-pod, or the countdown card in its
@@ -59,6 +61,16 @@ class HomeScreen extends StatelessWidget {
               stock: controller.stock,
               predictedRunOut: controller.predictedRunOut,
               reminderText: controller.reminderText,
+              onReminderTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => NotificationsScreen(controller: controller),
+                ),
+              ),
+              onStockTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => StockScreen(controller: controller),
+                ),
+              ),
             ),
           ),
         ],

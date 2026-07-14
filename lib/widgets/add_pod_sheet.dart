@@ -7,8 +7,10 @@ import 'start_time_picker_sheet.dart';
 
 /// Slides the "Start New Pod" sheet up over a scrim. Mirrors Figma node
 /// `164:65` — pick an insertion site and start a pod from the bottom bar's `+`.
-Future<void> showAddPodSheet(BuildContext context, PodController controller) {
-  return showModalBottomSheet<void>(
+/// Resolves to `'stock'` if the user tapped "Go to Stock" (out of stock), so
+/// the caller can switch to the Stock tab; otherwise `null`.
+Future<String?> showAddPodSheet(BuildContext context, PodController controller) {
+  return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -32,7 +34,7 @@ class AddPodSheet extends StatefulWidget {
 
 class _AddPodSheetState extends State<AddPodSheet> {
   static const List<String> _sites = [
-    'Abdomen', 'Lower back', 'Left arm', 'Right arm', 'Left thigh', 'Right thigh',
+    'Abdomen', 'Left arm', 'Right arm', 'Lower back', 'Left thigh', 'Right thigh',
   ];
 
   String _selectedSite = 'Abdomen';
@@ -58,6 +60,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
   }
 
   void _startPod() {
+    if (widget.controller.stock <= 0) return; // guarded by UI; belt-and-braces
     widget.controller.startPod(
       startedAt: _useNow ? null : _customStart,
       site: _selectedSite,
@@ -65,11 +68,16 @@ class _AddPodSheetState extends State<AddPodSheet> {
     Navigator.of(context).pop();
   }
 
+  /// Closes the sheet asking the bottom bar to switch to the Stock tab so the
+  /// user can restock before starting a pod.
+  void _goToStock() => Navigator.of(context).pop('stock');
+
   @override
   Widget build(BuildContext context) {
     // "Now" → current time; "Custom" → the chosen time. Pod is rated for 72h.
     final start = _start;
     final expiry = start.add(Duration(hours: widget.controller.defaultPodDurationHours));
+    final outOfStock = widget.controller.stock <= 0;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -133,14 +141,20 @@ class _AddPodSheetState extends State<AddPodSheet> {
                 const SizedBox(height: 14),
                 _expiresCard(expiry),
                 const SizedBox(height: 16),
-                Center(
-                  child: Text(
-                    '${widget.controller.stock} pods in stock — 1 will be used',
-                    style: AppText.caption,
+                if (outOfStock) ...[
+                  _outOfStockCard(),
+                  const SizedBox(height: 16),
+                  _goToStockButton(),
+                ] else ...[
+                  Center(
+                    child: Text(
+                      '${widget.controller.stock} pods in stock — 1 will be used',
+                      style: AppText.caption,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                _startButton(),
+                  const SizedBox(height: 16),
+                  _startButton(),
+                ],
                 const SizedBox(height: 6),
                 _cancelButton(),
               ],
@@ -237,6 +251,79 @@ class _AddPodSheetState extends State<AddPodSheet> {
           ],
         ),
         child: Text('Start Pod', style: AppText.button.copyWith(fontSize: 16)),
+      ),
+    );
+  }
+
+  /// Shown in place of the stock caption when there are no pods left. Warns the
+  /// user that a new pod can't be started until they restock.
+  Widget _outOfStockCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.endRed.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.endRed.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded, size: 20, color: AppColors.endRed),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '0 pods in stock',
+                  style: AppText.rowTitle.copyWith(
+                    fontSize: 15,
+                    color: AppColors.endRed,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Add pods to your stock before starting a new session.',
+                  style: AppText.sheetSubtitle,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Replaces "Start Pod" when out of stock — pops the sheet and asks the
+  /// bottom bar to open the Stock tab.
+  Widget _goToStockButton() {
+    return GestureDetector(
+      onTap: _goToStock,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.blue,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.blue.withValues(alpha: 0.35),
+              blurRadius: 9,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.inventory_2_outlined, size: 20, color: AppColors.white),
+            const SizedBox(width: 8),
+            Text('Go to Stock', style: AppText.button.copyWith(fontSize: 16)),
+          ],
+        ),
       ),
     );
   }

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'screens/home_screen.dart';
+import 'services/notification_service.dart';
 import 'state/pod.dart';
 import 'theme/tokens.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // required before SharedPreferences
+  await NotificationService.instance.init(); // ready before the controller boots
   runApp(const PodTrackerApp());
 }
 

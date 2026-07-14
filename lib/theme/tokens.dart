@@ -98,8 +98,27 @@ const List<String> _weekdaysShort = [
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
-/// "20:17"
-String fmtClock(DateTime d) => '${_two(d.hour)}:${_two(d.minute)}';
+/// App-wide date/time display preferences, mirrored from `PodController`
+/// settings so the pure `fmt*` helpers can honor the user's choices without
+/// threading a formatter through every call site. `PodController` keeps these
+/// in sync (on load, on change, on reset); UI reads them during build.
+class AppFormats {
+  AppFormats._();
+
+  /// `true` → 24-hour clock ("20:17"); `false` → 12-hour ("8:17 PM").
+  static bool use24Hour = true;
+
+  /// One of 'DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD' — controls [fmtDate].
+  static String dateStyle = 'DD/MM/YYYY';
+}
+
+/// "20:17" (24-hour) or "8:17 PM" (12-hour), per [AppFormats.use24Hour].
+String fmtClock(DateTime d) {
+  if (AppFormats.use24Hour) return '${_two(d.hour)}:${_two(d.minute)}';
+  final h12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  final suffix = d.hour < 12 ? 'AM' : 'PM';
+  return '$h12:${_two(d.minute)} $suffix';
+}
 
 /// "Tuesday, June 3, 2026"
 String fmtFullDate(DateTime d) =>
@@ -108,8 +127,21 @@ String fmtFullDate(DateTime d) =>
 /// "May 31, 20:17"
 String fmtShortStamp(DateTime d) => '${_monthsShort[d.month - 1]} ${d.day}, ${fmtClock(d)}';
 
-/// "Jun 21, 2026"
-String fmtDate(DateTime d) => '${_monthsShort[d.month - 1]} ${d.day}, ${d.year}';
+/// Numeric full date in the user's chosen order + separator
+/// ([AppFormats.dateStyle]): the order is read from whether the pattern starts
+/// with YYYY or MM (else day-first), and the separator ('/', '-' or '.') is
+/// taken from the pattern itself — so "21/06/2026", "2026-06-21", "21.06.2026"
+/// and "06.21.2026" all work.
+String fmtDate(DateTime d) {
+  final dd = _two(d.day);
+  final mm = _two(d.month);
+  final yyyy = d.year.toString();
+  final f = AppFormats.dateStyle;
+  final sep = f.contains('.') ? '.' : (f.contains('-') ? '-' : '/');
+  if (f.startsWith('YYYY')) return '$yyyy$sep$mm$sep$dd';
+  if (f.startsWith('MM')) return '$mm$sep$dd$sep$yyyy';
+  return '$dd$sep$mm$sep$yyyy';
+}
 
 /// "71h 58m"
 String fmtHm(Duration d) => '${d.inHours}h ${d.inMinutes % 60}m';

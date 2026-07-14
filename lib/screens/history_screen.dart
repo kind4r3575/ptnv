@@ -45,7 +45,30 @@ class HistoryScreen extends StatelessWidget {
   Widget _body(BuildContext context) {
     final items = controller.history;
     if (items.isEmpty) {
-      return Center(child: Text('No sessions yet', style: AppText.emptySub));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: const BoxDecoration(color: AppColors.cyanBg, shape: BoxShape.circle),
+              child: const Icon(Icons.history_rounded, size: 56, color: AppColors.navy),
+            ),
+            const SizedBox(height: 24),
+            Text('No pod history yet', style: AppText.emptyTitle),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                'Your finished pods will show up here once you end your first session.',
+                textAlign: TextAlign.center,
+                style: AppText.emptySub,
+              ),
+            ),
+          ],
+        ),
+      );
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),

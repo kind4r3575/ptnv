@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../state/pod.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
+import '../widgets/app_switch.dart';
 import '../widgets/home_parts.dart';
 import 'stock_history_screen.dart';
 
@@ -177,14 +178,25 @@ class _StockScreenState extends State<StockScreen> {
   }
 
   Widget _daysOfSupplyCard() {
+    // When stock is low/out, tint the card + "Days of supply left" to match the
+    // status badge (amber = low, red = out) — otherwise the normal cyan.
+    final out = _c.stock == 0;
+    final low = _c.stock <= _c.lowStockThreshold;
+    final accent = out
+        ? AppColors.redText
+        : (low ? AppColors.amberText : AppColors.cyan);
+    final bg = out
+        ? AppColors.redBg
+        : (low ? AppColors.amberBg : AppColors.cyanBg);
+    final valueColor = (out || low) ? accent : AppColors.navy;
     return _card(
-      color: AppColors.cyanBg,
+      color: bg,
       child: Row(
         children: [
           Container(
             width: 44,
             height: 44,
-            decoration: const BoxDecoration(color: AppColors.cyan, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
             child: const Icon(Icons.schedule_rounded, color: AppColors.white, size: 24),
           ),
           const SizedBox(width: 16),
@@ -192,10 +204,12 @@ class _StockScreenState extends State<StockScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('DAYS OF SUPPLY LEFT', style: AppText.statLabel),
+                Text('DAYS OF SUPPLY LEFT',
+                    style: AppText.statLabel.copyWith(
+                        color: (out || low) ? accent : null)),
                 const SizedBox(height: 2),
                 Text('≈ ${_c.daysOfSupply} days',
-                    style: AppText.sheetTitle.copyWith(fontSize: 22)),
+                    style: AppText.sheetTitle.copyWith(fontSize: 22, color: valueColor)),
                 const SizedBox(height: 2),
                 Text(
                   'Runs out around ${fmtMonthDay(_c.runsOutDate)} · '
@@ -324,12 +338,7 @@ class _StockScreenState extends State<StockScreen> {
               ],
             ),
           ),
-          Switch(
-            value: _c.reorderReminder,
-            activeThumbColor: AppColors.white,
-            activeTrackColor: AppColors.blue,
-            onChanged: _c.setReorderReminder,
-          ),
+          AppSwitch(value: _c.reorderReminder, onChanged: _c.setReorderReminder),
         ],
       ),
     );

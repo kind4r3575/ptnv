@@ -7,6 +7,7 @@ import '../widgets/app_bottom_bar.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/option_picker_sheet.dart';
+import 'notifications_screen.dart';
 
 /// The Settings screen (Figma node `213:83`). Every control in Pod Settings,
 /// Notifications, Reminders and Language & Format is functional and persists on
@@ -20,10 +21,12 @@ class SettingsScreen extends StatelessWidget {
   // Cycle option sets for the value + chevron rows.
   static const List<String> _podTypes = ['Omnipod · 72h', 'Omnipod 5 · 72h', 'Dana · 72h'];
   static const List<int> _graceOptions = [0, 1, 2, 4, 8];
-  static const List<String> _snoozeOptions = ['5 min', '10 min', '15 min', '30 min'];
-  static const List<String> _languages = ['English', 'Українська', 'Español'];
-  static const List<String> _timeFormats = ['24-hour', '12-hour'];
-  static const List<String> _dateFormats = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
+  static const List<String> _languages = ['English'];
+  static const List<String> _timeFormats = ['12-hour', '24-hour'];
+  static const List<String> _dateFormats = [
+    'DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD',
+    'DD.MM.YYYY', 'MM.DD.YYYY', 'YYYY.MM.DD',
+  ];
 
   static String _graceLabel(int h) =>
       h == 0 ? 'None' : (h == 1 ? '1 hour' : '$h hours');
@@ -88,11 +91,16 @@ class SettingsScreen extends StatelessWidget {
                       const SizedBox(height: 14),
                       _card(child: _podConfigBlock(context, c)),
                       _sectionHeader('Notifications'),
-                      _card(child: _notificationsBlock(c)),
-                      const SizedBox(height: 14),
-                      _card(child: _quietBlock(context, c)),
-                      _sectionHeader('Reminders before expiry'),
-                      _card(child: _remindersBlock(c)),
+                      _card(
+                        child: _LinkRow(
+                          label: 'Manage Notifications',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => NotificationsScreen(controller: controller),
+                            ),
+                          ),
+                        ),
+                      ),
                       _sectionHeader('Language & Format'),
                       _card(child: _languageBlock(context, c)),
                       _sectionHeader('Data & Backup'),
@@ -210,106 +218,8 @@ class SettingsScreen extends StatelessWidget {
               if (picked != null) c.setGracePeriodHours(picked);
             },
           ),
-          _divider(),
-          _ToggleRow(
-            label: 'Site Rotation Reminder',
-            subtitle: 'Remind me to change insertion site',
-            value: c.siteRotationReminder,
-            onChanged: c.setSiteRotationReminder,
-          ),
         ],
       );
-
-  // --- Notifications ---------------------------------------------------------
-
-  Widget _notificationsBlock(PodController c) => Column(
-        children: [
-          _ToggleRow(
-            label: 'Enable Notifications',
-            value: c.enableNotifications,
-            onChanged: c.setEnableNotifications,
-          ),
-          _divider(),
-          _ToggleRow(label: 'Sound', value: c.soundEnabled, onChanged: c.setSoundEnabled),
-          _divider(),
-          _ToggleRow(
-              label: 'Vibration', value: c.vibrationEnabled, onChanged: c.setVibrationEnabled),
-          _divider(),
-          _ToggleRow(
-            label: 'Critical Alerts',
-            subtitle: 'Alert even when phone is silent',
-            value: c.criticalAlerts,
-            onChanged: c.setCriticalAlerts,
-          ),
-          _divider(),
-          _ToggleRow(
-            label: 'Low Stock Alert',
-            subtitle: 'Notify me when pods run low',
-            value: c.lowStockAlert,
-            onChanged: c.setLowStockAlert,
-          ),
-          _divider(),
-          _ToggleRow(
-            label: 'Hide Previews',
-            subtitle: 'Hide pod details in notifications',
-            value: c.hidePreviews,
-            onChanged: c.setHidePreviews,
-          ),
-        ],
-      );
-
-  Widget _quietBlock(BuildContext context, PodController c) => Column(
-        children: [
-          _ToggleRow(
-            label: 'Quiet Hours',
-            subtitle: '22:00 – 07:00 · alerts muted',
-            value: c.quietHours,
-            onChanged: c.setQuietHours,
-          ),
-          _divider(),
-          _ValueRow(
-            label: 'Snooze Duration',
-            value: c.snoozeDuration,
-            onTap: () => _pickString(context,
-                title: 'Snooze Duration',
-                subtitle: 'How long to wait before reminding you again.',
-                options: _snoozeOptions,
-                current: c.snoozeDuration,
-                onPicked: c.setSnoozeDuration),
-          ),
-        ],
-      );
-
-  // --- Reminders -------------------------------------------------------------
-
-  Widget _remindersBlock(PodController c) {
-    final rows = <Widget>[];
-    for (var i = 0; i < c.reminderHours.length; i++) {
-      if (i > 0) rows.add(const SizedBox(height: 12));
-      rows.add(_ReminderRow(
-        index: i,
-        hours: c.reminderHours[i],
-        onChanged: (h) => c.updateReminder(i, h),
-        onDelete: () => c.removeReminder(i),
-      ));
-    }
-    rows.add(const SizedBox(height: 8));
-    rows.add(GestureDetector(
-      onTap: () => c.addReminder(12),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        height: 44,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.cyanBg,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text('＋ Add Reminder',
-            style: AppText.rowValue.copyWith(color: AppColors.blue, fontSize: 14)),
-      ),
-    ));
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rows);
-  }
 
   // --- Language & Format -----------------------------------------------------
 
@@ -533,47 +443,6 @@ class _ValueRow extends StatelessWidget {
   }
 }
 
-/// Label (+ optional subtitle) with a trailing switch.
-class _ToggleRow extends StatelessWidget {
-  const _ToggleRow({
-    required this.label,
-    this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppText.rowValue),
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(subtitle!, style: AppText.sheetSubtitle),
-              ],
-            ],
-          ),
-        ),
-        Switch(
-          value: value,
-          activeThumbColor: AppColors.white,
-          activeTrackColor: AppColors.blue,
-          onChanged: onChanged,
-        ),
-      ],
-    );
-  }
-}
-
 /// Label + chevron, tappable (used for the non-functional Data/About rows).
 class _LinkRow extends StatelessWidget {
   const _LinkRow({required this.label, required this.onTap});
@@ -596,108 +465,3 @@ class _LinkRow extends StatelessWidget {
   }
 }
 
-/// One "Reminder N" row: a small number box + "hours before" + delete.
-class _ReminderRow extends StatefulWidget {
-  const _ReminderRow({
-    required this.index,
-    required this.hours,
-    required this.onChanged,
-    required this.onDelete,
-  });
-
-  final int index;
-  final int hours;
-  final ValueChanged<int> onChanged;
-  final VoidCallback onDelete;
-
-  @override
-  State<_ReminderRow> createState() => _ReminderRowState();
-}
-
-class _ReminderRowState extends State<_ReminderRow> {
-  late final TextEditingController _controller =
-      TextEditingController(text: '${widget.hours}');
-  final FocusNode _focusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(_onFocusChange);
-  }
-
-  @override
-  void didUpdateWidget(_ReminderRow oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.hours != oldWidget.hours &&
-        int.tryParse(_controller.text.trim()) != widget.hours) {
-      _controller.text = '${widget.hours}';
-    }
-  }
-
-  void _onFocusChange() {
-    if (!_focusNode.hasFocus && int.tryParse(_controller.text.trim()) == null) {
-      _controller.text = '${widget.hours}';
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _commit(String raw) {
-    final v = int.tryParse(raw.trim());
-    if (v != null) widget.onChanged(v);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Reminder ${widget.index + 1}', style: AppText.statLabel),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            SizedBox(
-              width: 64,
-              height: 44,
-              child: Container(
-                alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.cyan.withValues(alpha: 0.7), width: 1.5),
-                ),
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  textAlign: TextAlign.center,
-                  style: AppText.rowValue.copyWith(fontSize: 16),
-                  onChanged: _commit,
-                  onSubmitted: _commit,
-                  decoration: const InputDecoration(
-                    isCollapsed: true,
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text('hours before', style: AppText.rowTitle)),
-            IconButton(
-              onPressed: widget.onDelete,
-              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.endRed),
-              splashRadius: 20,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}

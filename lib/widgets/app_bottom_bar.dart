@@ -58,9 +58,16 @@ Widget appBottomBar(
     }
   }
 
+  // If the Add Pod sheet was opened with no pods left, it resolves to 'stock'
+  // (the user tapped "Go to Stock") — switch to the Stock tab so they restock.
+  Future<void> onAddTap() async {
+    final result = await showAddPodSheet(context, controller);
+    if (result == 'stock' && context.mounted) goTo(1);
+  }
+
   return HomeBottomBar(
     selectedIndex: currentIndex,
-    onAddTap: () => showAddPodSheet(context, controller),
+    onAddTap: onAddTap,
     onHomeTap: () => goTo(0),
     onStockTap: () => goTo(1),
     onHistoryTap: () => goTo(3),
