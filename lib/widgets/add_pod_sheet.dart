@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../state/pod.dart';
 import '../theme/tokens.dart';
+import 'confirm_dialog.dart';
 import 'sheet_parts.dart';
 import 'start_time_picker_sheet.dart';
 
@@ -59,14 +60,30 @@ class _AddPodSheetState extends State<AddPodSheet> {
     }
   }
 
-  void _startPod() {
+  Future<void> _startPod() async {
     if (_selectedSite == null) return; // must pick an insertion site first
     if (widget.controller.stock <= 0) return; // guarded by UI; belt-and-braces
+
+    // A pod is already active — confirm before replacing it, since starting a
+    // new one ends the current pod (it's recorded in history, not lost). The
+    // dialog shows the swap visually so it's clear at a glance why it appeared.
+    final active = widget.controller.session;
+    if (active != null) {
+      final ok = await showReplacePodDialog(
+        context: context,
+        currentSite: active.site,
+        currentWorn: active.worn(DateTime.now()),
+        newSite: _selectedSite!,
+        newStart: _start,
+      );
+      if (ok != true || !mounted) return;
+    }
+
     widget.controller.startPod(
       startedAt: _useNow ? null : _customStart,
       site: _selectedSite!,
     );
-    Navigator.of(context).pop();
+    if (mounted) Navigator.of(context).pop();
   }
 
   /// Closes the sheet asking the bottom bar to switch to the Stock tab so the

@@ -107,6 +107,57 @@ void main() {
       expect(find.text('Start New Pod'), findsOneWidget);
     });
 
+    testWidgets('starting a new pod while one is active asks to confirm', (tester) async {
+      tester.view.physicalSize = const Size(440, 956);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(const PodTrackerApp());
+      await tester.pump(const Duration(milliseconds: 1300));
+
+      // Start a first pod so one is active.
+      await tester.tap(find.byIcon(Icons.add_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Abdomen'));
+      await tester.pump();
+      await tester.tap(find.text('Start Pod'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('ON TRACK'), findsOneWidget);
+
+      // Open the sheet again and try to start another → confirmation appears.
+      await tester.tap(find.byIcon(Icons.add_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Left arm'));
+      await tester.pump();
+      await tester.tap(find.text('Start Pod'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300)); // dialog fade-in
+      expect(find.text('Start a new pod?'), findsOneWidget);
+
+      // Cancel → dialog closes, still on the sheet, no replacement happened.
+      // (The sheet has its own "Cancel" behind the dialog; tap the dialog's,
+      // which is the topmost/last one.)
+      await tester.tap(find.text('Cancel').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Start a new pod?'), findsNothing);
+      expect(find.text('Start New Pod'), findsOneWidget); // sheet still open
+
+      // Confirm this time → sheet closes and Home shows the new pod on track.
+      await tester.tap(find.text('Start Pod'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Yes, start new'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Start New Pod'), findsNothing);
+      expect(find.text('ON TRACK'), findsOneWidget);
+    });
+
     testWidgets('Cancel dismisses the sheet without starting a pod', (tester) async {
       tester.view.physicalSize = const Size(440, 956);
       tester.view.devicePixelRatio = 1.0;

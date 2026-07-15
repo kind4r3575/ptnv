@@ -49,23 +49,11 @@ class HistoryScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: const BoxDecoration(color: AppColors.cyanBg, shape: BoxShape.circle),
-              child: const Icon(Icons.history_rounded, size: 56, color: AppColors.navy),
-            ),
-            const SizedBox(height: 24),
-            Text('No pod history yet', style: AppText.emptyTitle),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                'Your finished pods will show up here once you end your first session.',
-                textAlign: TextAlign.center,
-                style: AppText.emptySub,
-              ),
-            ),
+            const Icon(Icons.history_rounded, size: 40, color: AppColors.slate),
+            const SizedBox(height: 14),
+            Text('No pod history yet', style: AppText.emptyTitle.copyWith(fontSize: 20)),
+            const SizedBox(height: 6),
+            Text('Finished pods show up here.', style: AppText.emptySub),
           ],
         ),
       );

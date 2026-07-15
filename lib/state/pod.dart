@@ -798,10 +798,16 @@ class PodController extends ChangeNotifier {
   /// Consumes one pod from stock (clamped at 0) and logs a "Session started"
   /// activity entry, matching the "1 will be used" note on the Add Pod sheet.
   /// The session carries the user's Default Pod Duration and Grace Period.
+  ///
+  /// If a pod is already active it is ended first — at the new pod's start time
+  /// — so the replaced session is recorded in history rather than silently
+  /// discarded. The Add Pod sheet confirms this replacement with the user.
   void startPod({DateTime? startedAt, String site = 'Not set'}) {
     _commitPendingStock(); // log any pending taps before the session entry
+    final start = startedAt ?? DateTime.now();
+    if (_session != null) endPod(endedAt: start, reason: 'Replaced');
     _session = PodSession(
-      startedAt: startedAt ?? DateTime.now(),
+      startedAt: start,
       site: site,
       durationHours: _defaultPodDurationHours,
       graceHours: _gracePeriodHours,
