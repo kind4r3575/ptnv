@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'screens/home_screen.dart';
 import 'services/notification_service.dart';
@@ -35,12 +34,12 @@ class _PodTrackerAppState extends State<PodTrackerApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'Poppins', // bundled locally; see theme/tokens.dart
         scaffoldBackgroundColor: AppColors.background,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.navy,
           primary: AppColors.navy,
         ),
-        textTheme: GoogleFonts.poppinsTextTheme(),
       ),
       home: HomeScreen(controller: _controller),
     );

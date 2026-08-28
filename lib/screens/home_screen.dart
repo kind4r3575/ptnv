@@ -23,7 +23,7 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: ListenableBuilder(
-          listenable: Listenable.merge([controller, controller.secondTick]),
+          listenable: controller,
           builder: (context, _) {
             return Column(
               children: [
@@ -50,7 +50,12 @@ class HomeScreen extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 34),
-            child: CountdownCard(session: session),
+            // Scoped to just the countdown numbers, so the per-second tick
+            // doesn't also rebuild EndPodButton/HomeInfoRows below.
+            child: ListenableBuilder(
+              listenable: controller.secondTick,
+              builder: (context, _) => CountdownCard(session: session),
+            ),
           ),
           const SizedBox(height: 22),
           EndPodButton(onPressed: () => showEndPodSheet(context, controller)),

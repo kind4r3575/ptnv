@@ -45,32 +45,42 @@ class StockHistoryScreen extends StatelessWidget {
 
   Widget _body() {
     final items = controller.activity;
-    return SingleChildScrollView(
+
+    // Flattened into a row list and fed to ListView.builder (rather than a
+    // Column inside SingleChildScrollView) so month groups off-screen aren't
+    // built until scrolled into view — the activity log grows unbounded over
+    // time. Visual output is unchanged: same widgets, same order, same gaps.
+    final rows = <Widget>[
+      _SummaryCard(stock: controller.stock, lastRestock: _lastRestock(items)),
+    ];
+    if (items.isEmpty) {
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 40),
+          child: Center(child: Text('No activity yet', style: AppText.emptySub)),
+        ),
+      );
+    } else {
+      rows.add(const SizedBox(height: 20));
+      for (final group in _groupByMonth(items)) {
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 0, 10),
+            child: Text(
+              fmtMonthYearUpper(group.first.at),
+              style: AppText.caption.copyWith(fontWeight: FontWeight.w600, fontSize: 12),
+            ),
+          ),
+        );
+        rows.add(_MonthCard(entries: group));
+        rows.add(const SizedBox(height: 18));
+      }
+    }
+
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _SummaryCard(stock: controller.stock, lastRestock: _lastRestock(items)),
-          const SizedBox(height: 20),
-          if (items.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 40),
-              child: Center(child: Text('No activity yet', style: AppText.emptySub)),
-            )
-          else
-            for (final group in _groupByMonth(items)) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 0, 0, 10),
-                child: Text(
-                  fmtMonthYearUpper(group.first.at),
-                  style: AppText.caption.copyWith(fontWeight: FontWeight.w600, fontSize: 12),
-                ),
-              ),
-              _MonthCard(entries: group),
-              const SizedBox(height: 18),
-            ],
-        ],
-      ),
+      itemCount: rows.length,
+      itemBuilder: (context, i) => rows[i],
     );
   }
 

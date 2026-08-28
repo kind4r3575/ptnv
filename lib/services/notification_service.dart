@@ -95,31 +95,41 @@ class NotificationService {
     var id = 0;
     for (final r in c.rules) {
       if (!r.enabled) continue;
-      final when = _scheduleTimeFor(r, c);
-      if (when == null) continue;
 
-      final tzWhen = tz.TZDateTime.from(when, tz.local);
+      // siteRotation has no native "every N days" repeat (unlike dailyTime,
+      // which uses DateTimeComponents.time) — pre-schedule a run of upcoming
+      // occurrences instead of just the next one, so the reminder keeps
+      // firing even if the app isn't reopened before the next cycle to
+      // trigger another sync.
+      final whens = r.trigger == NotificationTrigger.siteRotation
+          ? _siteRotationOccurrences(r)
+          : [_scheduleTimeFor(r, c)].whereType<DateTime>();
+
       final repeats = r.trigger == NotificationTrigger.dailyTime;
-      if (!repeats && !tzWhen.isAfter(now)) continue; // one-shot already past
+      for (final when in whens) {
+        final tzWhen = tz.TZDateTime.from(when, tz.local);
+        if (!repeats && !tzWhen.isAfter(now)) continue; // one-shot already past
 
-      try {
-        await _plugin.zonedSchedule(
-          id: id++,
-          title: r.displayTitle,
-          body: c.hidePreviews ? 'Open Pod Tracker' : r.summary,
-          scheduledDate: tzWhen,
-          notificationDetails: _details(c, critical: c.criticalAlerts),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          matchDateTimeComponents: repeats ? DateTimeComponents.time : null,
-        );
-      } catch (e) {
-        debugPrint('NotificationService: schedule failed for ${r.id}: $e');
+        try {
+          await _plugin.zonedSchedule(
+            id: id++,
+            title: r.displayTitle,
+            body: c.hidePreviews ? 'Open Pod Tracker' : r.summary,
+            scheduledDate: tzWhen,
+            notificationDetails: _details(c, critical: c.criticalAlerts),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            matchDateTimeComponents: repeats ? DateTimeComponents.time : null,
+          );
+        } catch (e) {
+          debugPrint('NotificationService: schedule failed for ${r.id}: $e');
+        }
       }
     }
   }
 
   /// When it fires: lifecycle rules relative to the session, dailyTime at the
-  /// next time-of-day, siteRotation [everyDays] out. Null = condition-based.
+  /// next time-of-day. Null = condition-based (or siteRotation, handled by
+  /// [_siteRotationOccurrences] instead since it needs multiple dates).
   DateTime? _scheduleTimeFor(NotificationRule r, PodController c) {
     switch (r.trigger) {
       case NotificationTrigger.podExpiry:
@@ -128,13 +138,23 @@ class NotificationService {
       case NotificationTrigger.dailyTime:
         return c.nextFireFor(r);
       case NotificationTrigger.siteRotation:
-        final now = DateTime.now();
-        final base = DateTime(
-            now.year, now.month, now.day, r.timeOfDayMinutes ~/ 60, r.timeOfDayMinutes % 60);
-        return base.add(Duration(days: r.everyDays));
       case NotificationTrigger.lowStock:
         return null;
     }
+  }
+
+  /// How many future occurrences of a [siteRotation] rule to pre-schedule at
+  /// once, so it keeps recurring without depending on the app being reopened
+  /// between cycles (see [sync]).
+  static const int _siteRotationLookahead = 12;
+
+  List<DateTime> _siteRotationOccurrences(NotificationRule r) {
+    final now = DateTime.now();
+    final base = DateTime(
+        now.year, now.month, now.day, r.timeOfDayMinutes ~/ 60, r.timeOfDayMinutes % 60);
+    final first = base.add(Duration(days: r.everyDays));
+    return List.generate(
+        _siteRotationLookahead, (i) => first.add(Duration(days: r.everyDays * i)));
   }
 
   /// Show an immediate low-stock notification (the condition-based trigger),

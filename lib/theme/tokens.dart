@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Pod Tracker brand palette, converted from the Figma design tokens
 /// (original 0–1 RGB values noted alongside each color).
@@ -34,48 +33,57 @@ abstract final class AppColors {
 }
 
 /// Poppins text styles used across the Home page.
+///
+/// Poppins is bundled locally (see `pubspec.yaml` / `assets/fonts`) rather
+/// than fetched at runtime via the `google_fonts` package, so the app's own
+/// text never depends on a network call. Styles are `static final` (computed
+/// once) rather than `static TextStyle get` — each is read dozens of times
+/// per build, and a getter would rebuild the TextStyle on every read.
 abstract final class AppText {
-  static TextStyle get appTitle =>
-      GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.navy);
-  static TextStyle get bigTime => GoogleFonts.poppins(
-      fontSize: 52, fontWeight: FontWeight.w700, color: AppColors.navy, height: 1.0);
-  static TextStyle get cardDate =>
-      GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.navy);
-  static TextStyle get eyebrow => GoogleFonts.poppins(
-      fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.slate, letterSpacing: 0.8);
-  static TextStyle get caption =>
-      GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.slate);
-  static TextStyle get statLabel => GoogleFonts.poppins(
-      fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.slate, letterSpacing: 0.6);
-  static TextStyle get statValue =>
-      GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.navy);
-  static TextStyle get rowTitle =>
-      GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.slate);
-  static TextStyle get rowValue =>
-      GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.navy);
-  static TextStyle get button =>
-      GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white);
-  static TextStyle get emptyTitle =>
-      GoogleFonts.poppins(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.navy);
-  static TextStyle get emptySub =>
-      GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w400, color: AppColors.slate);
-  static TextStyle get badge => GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.w600);
-  static TextStyle get statusLabel =>
-      GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.w600, letterSpacing: 0.4);
+  static const String _family = 'Poppins';
+
+  static const TextStyle appTitle =
+      TextStyle(fontFamily: _family, fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.navy);
+  static const TextStyle bigTime = TextStyle(
+      fontFamily: _family, fontSize: 52, fontWeight: FontWeight.w700, color: AppColors.navy, height: 1.0);
+  static const TextStyle cardDate =
+      TextStyle(fontFamily: _family, fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.navy);
+  static const TextStyle eyebrow = TextStyle(
+      fontFamily: _family, fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.slate, letterSpacing: 0.8);
+  static const TextStyle caption =
+      TextStyle(fontFamily: _family, fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.slate);
+  static const TextStyle statLabel = TextStyle(
+      fontFamily: _family, fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.slate, letterSpacing: 0.6);
+  static const TextStyle statValue =
+      TextStyle(fontFamily: _family, fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.navy);
+  static const TextStyle rowTitle =
+      TextStyle(fontFamily: _family, fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.slate);
+  static const TextStyle rowValue =
+      TextStyle(fontFamily: _family, fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.navy);
+  static const TextStyle button =
+      TextStyle(fontFamily: _family, fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white);
+  static const TextStyle emptyTitle =
+      TextStyle(fontFamily: _family, fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.navy);
+  static const TextStyle emptySub =
+      TextStyle(fontFamily: _family, fontSize: 16, fontWeight: FontWeight.w400, color: AppColors.slate);
+  static const TextStyle badge =
+      TextStyle(fontFamily: _family, fontSize: 12.5, fontWeight: FontWeight.w600);
+  static const TextStyle statusLabel =
+      TextStyle(fontFamily: _family, fontSize: 12.5, fontWeight: FontWeight.w600, letterSpacing: 0.4);
 
   // Add Pod sheet -----------------------------------------------------------
-  static TextStyle get sheetTitle =>
-      GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.navy);
-  static TextStyle get sheetSubtitle =>
-      GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.slate);
-  static TextStyle get chipLabel =>
-      GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.slate);
-  static TextStyle get chipLabelSelected =>
-      GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navy);
-  static TextStyle get segLabel =>
-      GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate);
-  static TextStyle get segLabelSelected =>
-      GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navy);
+  static const TextStyle sheetTitle =
+      TextStyle(fontFamily: _family, fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.navy);
+  static const TextStyle sheetSubtitle =
+      TextStyle(fontFamily: _family, fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.slate);
+  static const TextStyle chipLabel =
+      TextStyle(fontFamily: _family, fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.slate);
+  static const TextStyle chipLabelSelected =
+      TextStyle(fontFamily: _family, fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navy);
+  static const TextStyle segLabel =
+      TextStyle(fontFamily: _family, fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate);
+  static const TextStyle segLabelSelected =
+      TextStyle(fontFamily: _family, fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navy);
 }
 
 // ---------------------------------------------------------------------------

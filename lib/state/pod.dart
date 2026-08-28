@@ -715,36 +715,37 @@ class PodController extends ChangeNotifier {
     }
   }
 
+  /// Writes every key independently, so they're fired concurrently rather
+  /// than as ~20 sequential platform-channel round-trips.
   Future<void> _save() async {
     final p = _prefs;
     if (p == null) return;
-    await p.setInt(_kStock, _stock);
-    await p.setBool(_kReorder, _reorderReminder);
-    await p.setString(
-        _kActivity, jsonEncode(_activity.map((e) => e.toJson()).toList()));
-    await p.setString(
-        _kHistory, jsonEncode(_history.map((e) => e.toJson()).toList()));
     final s = _session;
-    await p.setString(_kSession, s == null ? '' : jsonEncode(s.toJson()));
-    await p.setInt(_kDuration, _defaultPodDurationHours);
-    await p.setInt(_kLowStock, _lowStockThreshold);
-    await p.setString(_kPodType, _podType);
-    await p.setInt(_kGrace, _gracePeriodHours);
-    await p.setBool(_kSiteRot, _siteRotationReminder);
-    await p.setBool(_kEnableNotif, _enableNotifications);
-    await p.setBool(_kSound, _soundEnabled);
-    await p.setBool(_kVibration, _vibrationEnabled);
-    await p.setBool(_kCritical, _criticalAlerts);
-    await p.setBool(_kLowStockAlert, _lowStockAlert);
-    await p.setBool(_kHidePrev, _hidePreviews);
-    await p.setBool(_kQuiet, _quietHours);
-    await p.setString(_kSnooze, _snoozeDuration);
-    await p.setStringList(
-        _kReminders, _reminderHours.map((e) => e.toString()).toList());
-    await p.setString(_kRules, jsonEncode(_rules.map((e) => e.toJson()).toList()));
-    await p.setString(_kLanguage, _language);
-    await p.setString(_kTimeFmt, _timeFormat);
-    await p.setString(_kDateFmt, _dateFormat);
+    await Future.wait([
+      p.setInt(_kStock, _stock),
+      p.setBool(_kReorder, _reorderReminder),
+      p.setString(_kActivity, jsonEncode(_activity.map((e) => e.toJson()).toList())),
+      p.setString(_kHistory, jsonEncode(_history.map((e) => e.toJson()).toList())),
+      p.setString(_kSession, s == null ? '' : jsonEncode(s.toJson())),
+      p.setInt(_kDuration, _defaultPodDurationHours),
+      p.setInt(_kLowStock, _lowStockThreshold),
+      p.setString(_kPodType, _podType),
+      p.setInt(_kGrace, _gracePeriodHours),
+      p.setBool(_kSiteRot, _siteRotationReminder),
+      p.setBool(_kEnableNotif, _enableNotifications),
+      p.setBool(_kSound, _soundEnabled),
+      p.setBool(_kVibration, _vibrationEnabled),
+      p.setBool(_kCritical, _criticalAlerts),
+      p.setBool(_kLowStockAlert, _lowStockAlert),
+      p.setBool(_kHidePrev, _hidePreviews),
+      p.setBool(_kQuiet, _quietHours),
+      p.setString(_kSnooze, _snoozeDuration),
+      p.setStringList(_kReminders, _reminderHours.map((e) => e.toString()).toList()),
+      p.setString(_kRules, jsonEncode(_rules.map((e) => e.toJson()).toList())),
+      p.setString(_kLanguage, _language),
+      p.setString(_kTimeFmt, _timeFormat),
+      p.setString(_kDateFmt, _dateFormat),
+    ]);
   }
 
   void _startTicker() {
