@@ -5,6 +5,7 @@ import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/home_parts.dart';
+import '../widgets/page_transitions.dart';
 import '../widgets/settings_parts.dart';
 import 'notifications_screen.dart';
 import 'pod_settings_screen.dart';
@@ -36,7 +37,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _push(BuildContext context, Widget page) {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+    Navigator.of(context).push(fadePushRoute(page));
   }
 
   @override

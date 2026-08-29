@@ -6,6 +6,7 @@ import '../theme/tokens.dart';
 import '../widgets/app_switch.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/option_picker_sheet.dart';
+import '../widgets/page_transitions.dart';
 import 'notification_edit_screen.dart';
 
 /// The dedicated Notifications editor (reached from Settings and the Home
@@ -19,9 +20,9 @@ class NotificationsScreen extends StatelessWidget {
   static const List<String> _snoozeOptions = ['5 min', '10 min', '15 min', '30 min'];
 
   void _openEditor(BuildContext context, {NotificationRule? rule}) {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => NotificationEditScreen(controller: controller, rule: rule),
-    ));
+    Navigator.of(context).push(
+      fadePushRoute(NotificationEditScreen(controller: controller, rule: rule)),
+    );
   }
 
   @override

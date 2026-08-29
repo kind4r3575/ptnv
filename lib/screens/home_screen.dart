@@ -5,6 +5,7 @@ import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/end_pod_sheet.dart';
 import '../widgets/home_parts.dart';
+import '../widgets/page_transitions.dart';
 import 'notifications_screen.dart';
 import 'stock_screen.dart';
 
@@ -67,14 +68,10 @@ class HomeScreen extends StatelessWidget {
               predictedRunOut: controller.predictedRunOut,
               reminderText: controller.reminderText,
               onReminderTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => NotificationsScreen(controller: controller),
-                ),
+                fadePushRoute(NotificationsScreen(controller: controller)),
               ),
               onStockTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => StockScreen(controller: controller),
-                ),
+                fadePushRoute(StockScreen(controller: controller)),
               ),
             ),
           ),

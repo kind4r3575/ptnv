@@ -5,6 +5,7 @@ import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_switch.dart';
 import '../widgets/home_parts.dart';
+import '../widgets/page_transitions.dart';
 import 'stock_history_screen.dart';
 
 /// The Pod Stock screen (Figma node `20:2`): adjust the pod count with the
@@ -291,9 +292,7 @@ class _StockScreenState extends State<StockScreen> {
               const Spacer(),
               GestureDetector(
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => StockHistoryScreen(controller: _c),
-                  ),
+                  fadePushRoute(StockHistoryScreen(controller: _c)),
                 ),
                 behavior: HitTestBehavior.opaque,
                 child: Text('See all ›',

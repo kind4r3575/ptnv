@@ -6,6 +6,7 @@ import '../screens/stock_screen.dart';
 import '../state/pod.dart';
 import 'add_pod_sheet.dart';
 import 'home_parts.dart';
+import 'page_transitions.dart';
 
 /// The single bottom navigation bar shared by all five destinations, wired so
 /// the user can reach any screen from any other screen.
@@ -33,16 +34,6 @@ Widget appBottomBar(
     }
   }
 
-  // A fade is direction-agnostic, so navigating up to a tab (push) and back to
-  // Home (pop) animate identically — every tab switch looks the same.
-  Route<void> fadeRoute(Widget page) => PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => page,
-        transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
-        transitionDuration: const Duration(milliseconds: 250),
-        reverseTransitionDuration: const Duration(milliseconds: 250),
-      );
-
   void goTo(int index) {
     if (index == currentIndex) return;
     final nav = Navigator.of(context);
@@ -50,7 +41,7 @@ Widget appBottomBar(
       nav.popUntil((r) => r.isFirst); // pops the fade route → fades back to Home
       return;
     }
-    final route = fadeRoute(screenFor(index));
+    final route = fadePushRoute(screenFor(index));
     if (currentIndex == 0) {
       nav.push(route);
     } else {
