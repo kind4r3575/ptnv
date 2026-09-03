@@ -17,6 +17,7 @@ A Flutter app for people on insulin pump therapy (Omnipod-style patch pumps) to 
   <img src="assets/screenshots/stock.png" width="200" alt="Stock management">
   <img src="assets/screenshots/history.png" width="200" alt="Session history">
   <img src="assets/screenshots/settings.png" width="200" alt="Settings">
+  <img src="assets/screenshots/addpod.png" width="200" alt="addpod">
 </p>
 
 ## Overview
