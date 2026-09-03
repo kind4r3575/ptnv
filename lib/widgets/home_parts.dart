@@ -121,8 +121,8 @@ class HomeBottomBar extends StatelessWidget {
   Widget _item(IconData icon, {bool selected = false, double size = 28, VoidCallback? onTap}) {
     if (selected) {
       return Container(
-        width: 56,
-        height: 56,
+        width: 64,
+        height: 64,
         decoration: BoxDecoration(
           color: AppColors.cyan.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(18),
@@ -134,8 +134,8 @@ class HomeBottomBar extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap ?? onInactiveTap,
       child: SizedBox(
-        width: 56,
-        height: 56,
+        width: 64,
+        height: 64,
         child: Icon(icon, size: size, color: AppColors.navy),
       ),
     );
