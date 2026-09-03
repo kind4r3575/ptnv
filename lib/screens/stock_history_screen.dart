@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../state/pod.dart';
+import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/home_parts.dart';
@@ -10,9 +11,10 @@ import '../widgets/home_parts.dart';
 /// activity grouped into per-month cards, each row carrying a signed delta chip,
 /// a two-line label/detail, and the entry date.
 class StockHistoryScreen extends StatelessWidget {
-  const StockHistoryScreen({super.key, required this.controller});
+  const StockHistoryScreen({super.key, required this.controller, required this.tabs});
 
   final PodController controller;
+  final RootTabController tabs;
 
   @override
   Widget build(BuildContext context) {
@@ -39,48 +41,57 @@ class StockHistoryScreen extends StatelessWidget {
           },
         ),
       ),
-      bottomNavigationBar: appBottomBar(context, controller, 1),
+      bottomNavigationBar: appBottomBar(context, controller, tabs, 1),
     );
   }
 
   Widget _body() {
     final items = controller.activity;
 
-    // Flattened into a row list and fed to ListView.builder (rather than a
-    // Column inside SingleChildScrollView) so month groups off-screen aren't
-    // built until scrolled into view — the activity log grows unbounded over
-    // time. Visual output is unchanged: same widgets, same order, same gaps.
-    final rows = <Widget>[
-      _SummaryCard(stock: controller.stock, lastRestock: _lastRestock(items)),
-    ];
-    if (items.isEmpty) {
-      rows.add(
-        Padding(
+    // Only the grouping (cheap: one pass over the entries, no widgets) runs
+    // eagerly. Each month's card — and its nested per-entry rows — is built
+    // by ListView.builder's itemBuilder, so it's only constructed once that
+    // slot scrolls into view. The activity log grows unbounded over time, so
+    // a version that builds every month's widgets up front (even lazily
+    // *inflated* by ListView.builder) would redo that work on every rebuild
+    // regardless of scroll position. Visual output is unchanged: same
+    // widgets, same order, same gaps.
+    final groups = items.isEmpty ? const <List<StockActivity>>[] : _groupByMonth(items);
+    final itemCount = 2 + (items.isEmpty ? 0 : groups.length * 3);
+
+    Widget itemBuilder(BuildContext context, int i) {
+      if (i == 0) {
+        return _SummaryCard(stock: controller.stock, lastRestock: _lastRestock(items));
+      }
+      if (items.isEmpty) {
+        return Padding(
           padding: const EdgeInsets.only(top: 40),
           child: Center(child: Text('No activity yet', style: AppText.emptySub)),
-        ),
-      );
-    } else {
-      rows.add(const SizedBox(height: 20));
-      for (final group in _groupByMonth(items)) {
-        rows.add(
-          Padding(
+        );
+      }
+      if (i == 1) return const SizedBox(height: 20);
+      final j = i - 2;
+      final group = groups[j ~/ 3];
+      switch (j % 3) {
+        case 0:
+          return Padding(
             padding: const EdgeInsets.fromLTRB(4, 0, 0, 10),
             child: Text(
               fmtMonthYearUpper(group.first.at),
               style: AppText.caption.copyWith(fontWeight: FontWeight.w600, fontSize: 12),
             ),
-          ),
-        );
-        rows.add(_MonthCard(entries: group));
-        rows.add(const SizedBox(height: 18));
+          );
+        case 1:
+          return _MonthCard(entries: group);
+        default:
+          return const SizedBox(height: 18);
       }
     }
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-      itemCount: rows.length,
-      itemBuilder: (context, i) => rows[i],
+      itemCount: itemCount,
+      itemBuilder: itemBuilder,
     );
   }
 

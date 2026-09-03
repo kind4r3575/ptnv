@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../state/pod.dart';
+import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/end_pod_sheet.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/page_transitions.dart';
+import '../widgets/tab_listenable_builder.dart';
 import 'notifications_screen.dart';
 import 'stock_screen.dart';
 
@@ -13,9 +15,10 @@ import 'stock_screen.dart';
 /// loading skeleton, no-active-pod, or the countdown card in its
 /// on-track / grace / late variant.
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.controller});
+  const HomeScreen({super.key, required this.controller, required this.tabs});
 
   final PodController controller;
+  final RootTabController tabs;
 
   @override
   Widget build(BuildContext context) {
@@ -23,9 +26,11 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: ListenableBuilder(
+        child: TabListenableBuilder(
           listenable: controller,
-          builder: (context, _) {
+          tabs: tabs,
+          tabIndex: 0,
+          builder: (context) {
             return Column(
               children: [
                 AppBarWave(onLongPressTitle: controller.cycleDemoState),
@@ -35,7 +40,7 @@ class HomeScreen extends StatelessWidget {
           },
         ),
       ),
-      bottomNavigationBar: appBottomBar(context, controller, 0),
+      bottomNavigationBar: appBottomBar(context, controller, tabs, 0),
     );
   }
 
@@ -52,10 +57,14 @@ class HomeScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 34),
             // Scoped to just the countdown numbers, so the per-second tick
-            // doesn't also rebuild EndPodButton/HomeInfoRows below.
-            child: ListenableBuilder(
+            // doesn't also rebuild EndPodButton/HomeInfoRows below — and
+            // gated on the Home tab so the tick doesn't fire at all while
+            // another tab is on screen (see TabListenableBuilder).
+            child: TabListenableBuilder(
               listenable: controller.secondTick,
-              builder: (context, _) => CountdownCard(session: session),
+              tabs: tabs,
+              tabIndex: 0,
+              builder: (context) => CountdownCard(session: session),
             ),
           ),
           const SizedBox(height: 22),
@@ -71,7 +80,7 @@ class HomeScreen extends StatelessWidget {
                 fadePushRoute(NotificationsScreen(controller: controller)),
               ),
               onStockTap: () => Navigator.of(context).push(
-                fadePushRoute(StockScreen(controller: controller)),
+                fadePushRoute(StockScreen(controller: controller, tabs: tabs)),
               ),
             ),
           ),

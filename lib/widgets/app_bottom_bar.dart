@@ -1,52 +1,28 @@
 import 'package:flutter/material.dart';
 
-import '../screens/history_screen.dart';
-import '../screens/settings_screen.dart';
-import '../screens/stock_screen.dart';
 import '../state/pod.dart';
+import '../state/root_tabs.dart';
 import 'add_pod_sheet.dart';
 import 'home_parts.dart';
-import 'page_transitions.dart';
 
-/// The single bottom navigation bar shared by all five destinations, wired so
-/// the user can reach any screen from any other screen.
+/// The single bottom navigation bar shared by all five destinations.
 ///
-/// Home is the navigation root; Stock (1), History (3) and Settings (4) are
-/// pushed on top of it. Switching between two secondary screens uses
-/// [NavigatorState.pushReplacement] so the back stack never grows past
-/// `Home → <one secondary>` — tapping Home always returns with a single
-/// `popUntil` to the first route.
+/// Home, Stock, History and Settings live side by side inside `RootShell`'s
+/// `IndexedStack` and stay mounted, so switching between them is just a
+/// [RootTabController] index change — no [Navigator] push, no rebuild, no
+/// transition. `StockHistoryScreen` is the one bottom-bar screen pushed on
+/// top of the shell (Stock's "See all" drill-down); switching tabs from
+/// there sets the tab first, then pops back to reveal the shell showing it.
 Widget appBottomBar(
   BuildContext context,
   PodController controller,
+  RootTabController tabs,
   int currentIndex,
 ) {
-  Widget screenFor(int index) {
-    switch (index) {
-      case 1:
-        return StockScreen(controller: controller);
-      case 3:
-        return HistoryScreen(controller: controller);
-      case 4:
-        return SettingsScreen(controller: controller);
-      default:
-        throw ArgumentError('No secondary screen for tab index $index');
-    }
-  }
-
   void goTo(int index) {
     if (index == currentIndex) return;
-    final nav = Navigator.of(context);
-    if (index == 0) {
-      nav.popUntil((r) => r.isFirst); // pops the fade route → fades back to Home
-      return;
-    }
-    final route = fadePushRoute(screenFor(index));
-    if (currentIndex == 0) {
-      nav.push(route);
-    } else {
-      nav.pushReplacement(route);
-    }
+    tabs.goTo(index);
+    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   // If the Add Pod sheet was opened with no pods left, it resolves to 'stock'

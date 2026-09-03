@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../state/pod.dart';
+import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/page_transitions.dart';
 import '../widgets/settings_parts.dart';
+import '../widgets/tab_listenable_builder.dart';
 import 'notifications_screen.dart';
 import 'pod_settings_screen.dart';
 
@@ -16,9 +18,10 @@ import 'pod_settings_screen.dart';
 /// design — the export/about taps only show "Coming soon", while Clear History
 /// and Reset to Defaults are live destructive actions.
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key, required this.controller});
+  const SettingsScreen({super.key, required this.controller, required this.tabs});
 
   final PodController controller;
+  final RootTabController tabs;
 
   static const List<String> _languages = ['English'];
   static const List<String> _timeFormats = ['12-hour', '24-hour'];
@@ -46,9 +49,11 @@ class SettingsScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: ListenableBuilder(
+        child: TabListenableBuilder(
           listenable: controller,
-          builder: (context, _) {
+          tabs: tabs,
+          tabIndex: 4,
+          builder: (context) {
             final c = controller;
             return Column(
               children: [
@@ -99,7 +104,7 @@ class SettingsScreen extends StatelessWidget {
           },
         ),
       ),
-      bottomNavigationBar: appBottomBar(context, controller, 4),
+      bottomNavigationBar: appBottomBar(context, controller, tabs, 4),
     );
   }
 

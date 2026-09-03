@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../state/pod.dart';
+import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/home_parts.dart';
+import '../widgets/tab_listenable_builder.dart';
 
 /// The Session History screen (Figma node `30:2`): a scroll of past-session
 /// cards. Log view only. The cards read from [PodController.history]; that list
 /// is currently seeded in memory and will be backed by a database later.
 class HistoryScreen extends StatelessWidget {
-  const HistoryScreen({super.key, required this.controller});
+  const HistoryScreen({super.key, required this.controller, required this.tabs});
 
   final PodController controller;
+  final RootTabController tabs;
 
   @override
   Widget build(BuildContext context) {
@@ -19,9 +22,11 @@ class HistoryScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: ListenableBuilder(
+        child: TabListenableBuilder(
           listenable: controller,
-          builder: (context, _) {
+          tabs: tabs,
+          tabIndex: 3,
+          builder: (context) {
             return Column(
               children: [
                 AppBarWave(
@@ -38,7 +43,7 @@ class HistoryScreen extends StatelessWidget {
           },
         ),
       ),
-      bottomNavigationBar: appBottomBar(context, controller, 3),
+      bottomNavigationBar: appBottomBar(context, controller, tabs, 3),
     );
   }
 

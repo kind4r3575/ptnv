@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../state/pod.dart';
+import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_switch.dart';
@@ -12,9 +13,10 @@ import 'stock_history_screen.dart';
 /// −/+ steppers, see the estimated days of supply (stock × 3), set an exact
 /// amount, review recent activity, and toggle the reorder reminder.
 class StockScreen extends StatefulWidget {
-  const StockScreen({super.key, required this.controller});
+  const StockScreen({super.key, required this.controller, required this.tabs});
 
   final PodController controller;
+  final RootTabController tabs;
 
   @override
   State<StockScreen> createState() => _StockScreenState();
@@ -81,7 +83,7 @@ class _StockScreenState extends State<StockScreen> {
           },
         ),
       ),
-      bottomNavigationBar: appBottomBar(context, _c, 1),
+      bottomNavigationBar: appBottomBar(context, _c, widget.tabs, 1),
     );
   }
 
@@ -292,7 +294,7 @@ class _StockScreenState extends State<StockScreen> {
               const Spacer(),
               GestureDetector(
                 onTap: () => Navigator.of(context).push(
-                  fadePushRoute(StockHistoryScreen(controller: _c)),
+                  fadePushRoute(StockHistoryScreen(controller: _c, tabs: widget.tabs)),
                 ),
                 behavior: HitTestBehavior.opaque,
                 child: Text('See all ›',

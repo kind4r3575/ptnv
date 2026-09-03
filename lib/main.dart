@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'screens/home_screen.dart';
+import 'screens/root_shell.dart';
 import 'services/notification_service.dart';
 import 'state/pod.dart';
+import 'state/root_tabs.dart';
 import 'theme/tokens.dart';
 
 Future<void> main() async {
@@ -20,10 +21,12 @@ class PodTrackerApp extends StatefulWidget {
 
 class _PodTrackerAppState extends State<PodTrackerApp> {
   final PodController _controller = PodController();
+  final RootTabController _tabs = RootTabController();
 
   @override
   void dispose() {
     _controller.dispose();
+    _tabs.dispose();
     super.dispose();
   }
 
@@ -41,7 +44,7 @@ class _PodTrackerAppState extends State<PodTrackerApp> {
           primary: AppColors.navy,
         ),
       ),
-      home: HomeScreen(controller: _controller),
+      home: RootShell(controller: _controller, tabs: _tabs),
     );
   }
 }
