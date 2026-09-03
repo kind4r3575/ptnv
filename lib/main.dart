@@ -8,7 +8,12 @@ import 'theme/tokens.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // required before SharedPreferences
-  await NotificationService.instance.init(); // ready before the controller boots
+  // Not awaited: the timezone-database parse + platform-channel round trips
+  // inside init() otherwise block the first frame for several seconds on real
+  // devices. It's kicked off here so it runs concurrently with app startup;
+  // NotificationService.sync()/showLowStockNow() await its completion
+  // internally before touching the plugin, so nothing is silently skipped.
+  NotificationService.instance.init();
   runApp(const PodTrackerApp());
 }
 

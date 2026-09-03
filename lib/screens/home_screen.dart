@@ -33,7 +33,7 @@ class HomeScreen extends StatelessWidget {
           builder: (context) {
             return Column(
               children: [
-                AppBarWave(onLongPressTitle: controller.cycleDemoState),
+                const AppBarWave(),
                 Expanded(child: _body(context)),
               ],
             );

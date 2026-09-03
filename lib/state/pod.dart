@@ -218,6 +218,12 @@ class PodController extends ChangeNotifier {
   /// Pods used up per day of supply estimate — "≈ stock × 3 days".
   static const int daysPerPod = 3;
 
+  /// Caps on the newest-first activity/history lists so years of daily use
+  /// don't grow either list — and the JSON blob [_save] re-encodes on every
+  /// debounced write — without bound. Oldest entries fall off first.
+  static const int _maxActivityEntries = 500;
+  static const int _maxHistoryEntries = 365;
+
   bool _reorderReminder = true;
 
   // --- Persistence (shared_preferences + JSON) -------------------------------
@@ -238,6 +244,20 @@ class PodController extends ChangeNotifier {
 
   // Editable notification rules (add/edit/remove in the Notifications editor).
   final List<NotificationRule> _rules = [];
+
+  void _insertActivity(StockActivity a) {
+    _activity.insert(0, a);
+    if (_activity.length > _maxActivityEntries) {
+      _activity.removeRange(_maxActivityEntries, _activity.length);
+    }
+  }
+
+  void _insertHistory(SessionRecord r) {
+    _history.insert(0, r);
+    if (_history.length > _maxHistoryEntries) {
+      _history.removeRange(_maxHistoryEntries, _history.length);
+    }
+  }
 
   PodSession? get session => _session;
   int get stock => _stock;
@@ -276,14 +296,11 @@ class PodController extends ChangeNotifier {
     final delta = _pendingStockDelta;
     _pendingStockDelta = 0;
     if (delta == 0) return; // e.g. +1 then −1 cancelled out — nothing to log
-    _activity.insert(
-      0,
-      StockActivity(
-        delta: delta,
-        label: delta > 0 ? 'Added' : 'Removed',
-        at: DateTime.now(),
-      ),
-    );
+    _insertActivity(StockActivity(
+      delta: delta,
+      label: delta > 0 ? 'Added' : 'Removed',
+      at: DateTime.now(),
+    ));
     notifyListeners();
   }
 
@@ -294,10 +311,7 @@ class PodController extends ChangeNotifier {
     if (next == _stock) return;
     final applied = next - _stock;
     _stock = next;
-    _activity.insert(
-      0,
-      StockActivity(delta: applied, label: 'Set exact amount', at: DateTime.now()),
-    );
+    _insertActivity(StockActivity(delta: applied, label: 'Set exact amount', at: DateTime.now()));
     notifyListeners();
   }
 
@@ -772,21 +786,18 @@ class PodController extends ChangeNotifier {
       PodStatus.grace => HistoryOutcome.completed,
       PodStatus.late => HistoryOutcome.wornTooLong,
     };
-    _history.insert(
-      0,
-      SessionRecord(
-        date: end,
-        outcome: outcome,
-        started: session.startedAt,
-        ended: end,
-        worn: worn.isNegative ? Duration.zero : worn,
-        placedOn: session.site,
-        whyChanged: reason,
-        remindersSent: 0, // reminder tracking not implemented yet
-        changes: 'None', // duration adjustments not implemented yet
-        plannedHours: session.durationHours,
-      ),
-    );
+    _insertHistory(SessionRecord(
+      date: end,
+      outcome: outcome,
+      started: session.startedAt,
+      ended: end,
+      worn: worn.isNegative ? Duration.zero : worn,
+      placedOn: session.site,
+      whyChanged: reason,
+      remindersSent: 0, // reminder tracking not implemented yet
+      changes: 'None', // duration adjustments not implemented yet
+      plannedHours: session.durationHours,
+    ));
     _session = null;
     _ticker?.cancel();
     _ticker = null;
@@ -816,44 +827,11 @@ class PodController extends ChangeNotifier {
     _loading = false;
     if (_stock > 0) {
       _stock -= 1;
-      _activity.insert(
-        0,
+      _insertActivity(
         StockActivity(delta: -1, label: 'Session started', note: site, at: DateTime.now()),
       );
     }
     _startTicker();
-    notifyListeners();
-  }
-
-  // --- Temporary demo helper -------------------------------------------------
-  // Long-press the "Pod Tracker" title to cycle through every Home state so all
-  // five can be verified live before the other screens exist. Remove once real
-  // navigation drives the state.
-  int _demoIndex = 0;
-  void cycleDemoState() {
-    _demoIndex = (_demoIndex + 1) % 5;
-    _loading = false;
-    final now = DateTime.now();
-    switch (_demoIndex) {
-      case 0: // On track
-        _session = PodSession(startedAt: now.subtract(const Duration(minutes: 1, seconds: 43)));
-        _startTicker();
-      case 1: // Grace
-        _session = PodSession(startedAt: now.subtract(const Duration(hours: 74, minutes: 18)));
-        _startTicker();
-      case 2: // Late / stopped
-        _session = PodSession(startedAt: now.subtract(const Duration(hours: 83, minutes: 43)));
-        _startTicker();
-      case 3: // No active pod
-        _session = null;
-        _ticker?.cancel();
-        _ticker = null;
-      case 4: // Loading
-        _session = null;
-        _ticker?.cancel();
-        _ticker = null;
-        _loading = true;
-    }
     notifyListeners();
   }
 

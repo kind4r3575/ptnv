@@ -16,14 +16,22 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
+  Future<void>? _initFuture;
 
   static const String _channelReminders = 'reminders';
   static const String _channelCritical = 'critical';
   static const int _lowStockId = 900000; // fixed id so it never collides with rules
 
-  /// Initialize the plugin, timezone database and request permissions. Safe to
-  /// call once from `main`; failures are swallowed so the app still runs.
-  Future<void> init() async {
+  /// Initialize the plugin, timezone database and request permissions.
+  ///
+  /// Safe to call multiple times — the underlying work only ever runs once,
+  /// and every call (including the fire-and-forget one from `main`) shares
+  /// the same [Future], so [sync] and [showLowStockNow] can simply await
+  /// this even if `main`'s call is still in flight. Failures are swallowed
+  /// so the app still runs.
+  Future<void> init() => _initFuture ??= _doInit();
+
+  Future<void> _doInit() async {
     try {
       tzdata.initializeTimeZones();
       final info = await FlutterTimezone.getLocalTimezone();
@@ -86,12 +94,20 @@ class NotificationService {
   /// Cancel everything and re-schedule from the current rules + session. Called
   /// on boot and (debounced) whenever rules, the session or delivery settings
   /// change.
+  ///
+  /// Awaits [init] first so a `sync` that lands before `main`'s fire-and-forget
+  /// `init()` call has finished still schedules correctly instead of silently
+  /// no-op'ing. The actual `zonedSchedule` calls are fired concurrently
+  /// (rather than one `await` at a time) since a rule set with several
+  /// site-rotation rules can mean a dozen-plus scheduling calls per sync.
   Future<void> sync(PodController c) async {
+    await init();
     if (!_ready) return;
     await _plugin.cancelAll();
     if (!c.enableNotifications) return;
 
     final now = tz.TZDateTime.now(tz.local);
+    final tasks = <Future<void>>[];
     var id = 0;
     for (final r in c.rules) {
       if (!r.enabled) continue;
@@ -110,20 +126,40 @@ class NotificationService {
         final tzWhen = tz.TZDateTime.from(when, tz.local);
         if (!repeats && !tzWhen.isAfter(now)) continue; // one-shot already past
 
-        try {
-          await _plugin.zonedSchedule(
-            id: id++,
-            title: r.displayTitle,
-            body: c.hidePreviews ? 'Open Pod Tracker' : r.summary,
-            scheduledDate: tzWhen,
-            notificationDetails: _details(c, critical: c.criticalAlerts),
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-            matchDateTimeComponents: repeats ? DateTimeComponents.time : null,
-          );
-        } catch (e) {
-          debugPrint('NotificationService: schedule failed for ${r.id}: $e');
-        }
+        tasks.add(_scheduleOne(
+          id: id++,
+          rule: r,
+          c: c,
+          tzWhen: tzWhen,
+          repeats: repeats,
+        ));
       }
+    }
+    await Future.wait(tasks);
+  }
+
+  /// Schedules one occurrence. Failures are caught (and logged) per-call, not
+  /// left to propagate, so [sync] can run every occurrence concurrently via
+  /// [Future.wait] without one bad schedule call taking the rest down with it.
+  Future<void> _scheduleOne({
+    required int id,
+    required NotificationRule rule,
+    required PodController c,
+    required tz.TZDateTime tzWhen,
+    required bool repeats,
+  }) async {
+    try {
+      await _plugin.zonedSchedule(
+        id: id,
+        title: rule.displayTitle,
+        body: c.hidePreviews ? 'Open Pod Tracker' : rule.summary,
+        scheduledDate: tzWhen,
+        notificationDetails: _details(c, critical: c.criticalAlerts),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: repeats ? DateTimeComponents.time : null,
+      );
+    } catch (e) {
+      debugPrint('NotificationService: schedule failed for ${rule.id}: $e');
     }
   }
 
@@ -161,6 +197,7 @@ class NotificationService {
   /// respecting the global gates. Called by the controller when stock crosses
   /// the threshold.
   Future<void> showLowStockNow(PodController c) async {
+    await init();
     if (!_ready || !c.enableNotifications) return;
     try {
       await _plugin.show(

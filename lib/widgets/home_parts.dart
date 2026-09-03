@@ -14,16 +14,12 @@ class AppBarWave extends StatelessWidget {
     super.key,
     this.title = 'Pod Tracker',
     this.leading,
-    this.onLongPressTitle,
   });
 
   final String title;
 
   /// Optional leading widget (e.g. a back button on secondary screens).
   final Widget? leading;
-
-  /// Temporary: long-press the title to cycle Home states (demo only).
-  final VoidCallback? onLongPressTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +29,7 @@ class AppBarWave extends StatelessWidget {
         children: [
           SizedBox(width: leading == null ? 16 : 6),
           ?leading,
-          GestureDetector(
-            onLongPress: onLongPressTitle,
-            behavior: HitTestBehavior.opaque,
-            child: Text(title, style: AppText.appTitle),
-          ),
+          Text(title, style: AppText.appTitle),
           const SizedBox(width: 8),
           Expanded(
             child: CustomPaint(
