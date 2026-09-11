@@ -84,6 +84,12 @@ abstract final class AppText {
       TextStyle(fontFamily: _family, fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate);
   static const TextStyle segLabelSelected =
       TextStyle(fontFamily: _family, fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navy);
+
+  // Help / Contact / legal-doc screens ---------------------------------------
+  static const TextStyle docHeading =
+      TextStyle(fontFamily: _family, fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.navy);
+  static const TextStyle docBody = TextStyle(
+      fontFamily: _family, fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.navy, height: 1.55);
 }
 
 // ---------------------------------------------------------------------------
@@ -216,4 +222,15 @@ String fmtDateStepper(DateTime sel, DateTime now) {
     1 => 'Tomorrow · $wd',
     _ => wd,
   };
+}
+
+/// "3 days ago" / "5 hours ago" / "just now" — coarse relative time for
+/// "last used"-style captions, where a rough sense of recency matters more
+/// than a precise timestamp.
+String fmtRelativeAgo(DateTime at, [DateTime? now]) {
+  final d = (now ?? DateTime.now()).difference(at);
+  if (d.inDays >= 1) return '${d.inDays} day${d.inDays == 1 ? '' : 's'} ago';
+  if (d.inHours >= 1) return '${d.inHours} hour${d.inHours == 1 ? '' : 's'} ago';
+  if (d.inMinutes >= 1) return '${d.inMinutes} minute${d.inMinutes == 1 ? '' : 's'} ago';
+  return 'just now';
 }

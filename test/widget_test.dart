@@ -10,7 +10,7 @@ void main() {
   group('PodSession lifecycle', () {
     test('on track within the first 72h', () {
       final now = start.add(const Duration(hours: 1));
-      expect(s.statusAt(now), PodStatus.onTrack);
+      expect(s.statusAt(now), TrackedItemStatus.onTrack);
       expect(s.remaining(now), const Duration(hours: 71));
       expect(s.progress(now), greaterThan(0));
       expect(s.progress(now), lessThan(0.05));
@@ -18,24 +18,24 @@ void main() {
 
     test('grace between 72h and 80h', () {
       final now = start.add(const Duration(hours: 74, minutes: 18));
-      expect(s.statusAt(now), PodStatus.grace);
+      expect(s.statusAt(now), TrackedItemStatus.grace);
       expect(s.graceLeft(now), const Duration(hours: 5, minutes: 42));
       expect(s.progress(now), 1.0);
     });
 
     test('late after 80h, with overdue time', () {
       final now = start.add(const Duration(hours: 83, minutes: 43));
-      expect(s.statusAt(now), PodStatus.late);
+      expect(s.statusAt(now), TrackedItemStatus.late);
       expect(s.overdue(now), const Duration(hours: 3, minutes: 43));
       expect(s.worn(now), const Duration(hours: 83, minutes: 43));
     });
 
     test('exactly 72h is grace (no longer on track)', () {
-      expect(s.statusAt(start.add(const Duration(hours: 72))), PodStatus.grace);
+      expect(s.statusAt(start.add(const Duration(hours: 72))), TrackedItemStatus.grace);
     });
 
     test('exactly 80h is late', () {
-      expect(s.statusAt(start.add(const Duration(hours: 80))), PodStatus.late);
+      expect(s.statusAt(start.add(const Duration(hours: 80))), TrackedItemStatus.late);
     });
 
     test('negative durations are clamped to zero', () {

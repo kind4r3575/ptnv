@@ -189,9 +189,9 @@ class CountdownCard extends StatelessWidget {
     final now = DateTime.now();
     final status = session.statusAt(now);
     final style = _StatusStyle.of(status);
-    final headline = status == PodStatus.onTrack ? session.endAt : session.graceEndAt;
+    final headline = status == TrackedItemStatus.onTrack ? session.endAt : session.graceEndAt;
 
-    final secondValue = status == PodStatus.onTrack
+    final secondValue = status == TrackedItemStatus.onTrack
         ? fmtAuto(session.elapsed(now))
         : fmtHm(session.worn(now));
 
@@ -199,15 +199,15 @@ class CountdownCard extends StatelessWidget {
     final String leftCaption;
     final String rightCaption;
     switch (status) {
-      case PodStatus.onTrack:
+      case TrackedItemStatus.onTrack:
         thirdValue = fmtHm(session.remaining(now));
         leftCaption = 'Passed ${fmtAuto(session.elapsed(now))}';
         rightCaption = '${fmtHm(session.remaining(now))} left';
-      case PodStatus.grace:
+      case TrackedItemStatus.grace:
         thirdValue = fmtHm(session.graceLeft(now));
         leftCaption = 'Worn ${fmtHm(session.worn(now))}';
         rightCaption = '${fmtHm(session.graceLeft(now))} grace left';
-      case PodStatus.late:
+      case TrackedItemStatus.late:
         thirdValue = '+${fmtHm(session.overdue(now))}';
         leftCaption = 'Worn ${fmtHm(session.worn(now))}';
         rightCaption = 'Stopped ${fmtHm(session.overdue(now))} ago';
@@ -313,9 +313,9 @@ class _StatusStyle {
   final String secondLabel;
   final String thirdLabel;
 
-  static _StatusStyle of(PodStatus status) {
+  static _StatusStyle of(TrackedItemStatus status) {
     switch (status) {
-      case PodStatus.onTrack:
+      case TrackedItemStatus.onTrack:
         return const _StatusStyle(
           accent: AppColors.green,
           badgeBg: AppColors.green,
@@ -327,7 +327,7 @@ class _StatusStyle {
           secondLabel: 'PASSED',
           thirdLabel: 'REMAINING',
         );
-      case PodStatus.grace:
+      case TrackedItemStatus.grace:
         return const _StatusStyle(
           accent: AppColors.amberText,
           badgeBg: AppColors.amberBg,
@@ -339,7 +339,7 @@ class _StatusStyle {
           secondLabel: 'WORN',
           thirdLabel: 'GRACE LEFT',
         );
-      case PodStatus.late:
+      case TrackedItemStatus.late:
         return const _StatusStyle(
           accent: AppColors.redText,
           badgeBg: AppColors.redBg,

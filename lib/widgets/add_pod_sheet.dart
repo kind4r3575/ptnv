@@ -138,6 +138,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
                 const SizedBox(height: 24),
                 Text('INSERTION SITE', style: AppText.eyebrow),
                 const SizedBox(height: 12),
+                if (_lastUsedRow() case final row?) ...[row, const SizedBox(height: 10)],
                 ChipGrid(
                   labels: _sites,
                   selected: _selectedSite,
@@ -169,6 +170,29 @@ class _AddPodSheetState extends State<AddPodSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  /// "Last used: Abdomen · 3 days ago" — surfaces what the site rotation
+  /// reminder actually needs to be useful: what site was used last, and how
+  /// long ago, from data the app already records on every finished (or
+  /// active) session. `null` when there's nothing yet to show.
+  Widget? _lastUsedRow() {
+    final last = widget.controller.lastUsedSite;
+    if (last == null) return null;
+    return Row(
+      children: [
+        const Icon(Icons.autorenew_rounded, size: 14, color: AppColors.slate),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'Last used: ${last.site} · ${fmtRelativeAgo(last.since)}',
+            style: AppText.caption,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 

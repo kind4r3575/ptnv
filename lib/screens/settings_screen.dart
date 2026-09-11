@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../app_config.dart';
+import '../services/backup_service.dart';
 import '../services/export_service.dart';
+import '../services/link_service.dart';
 import '../state/pod.dart';
 import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
@@ -10,14 +13,22 @@ import '../widgets/home_parts.dart';
 import '../widgets/page_transitions.dart';
 import '../widgets/settings_parts.dart';
 import '../widgets/tab_listenable_builder.dart';
+import 'contact_support_screen.dart';
+import 'help_faq_screen.dart';
 import 'notifications_screen.dart';
 import 'pod_settings_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 
 /// The Settings screen (Figma node `213:83`). Pod Settings and Notifications are
 /// their own pushed pages; Language & Format is functional inline and persists on
-/// [PodController]. Export history (CSV/PDF, via [ExportService]) and both Data &
-/// Backup destructive actions are all live; the "About & Support" rows are shown
-/// per design but still just show "Coming soon".
+/// [PodController]. "Data & Backup" covers both a full app-state backup/restore
+/// (JSON, via [BackupService] — Pod Tracker's manual stand-in for cloud sync) and
+/// history-only export (CSV/PDF, via [ExportService]), plus the destructive Clear
+/// History / Reset to Defaults actions. "About & Support" is fully wired: Help &
+/// FAQ, Privacy Policy and Terms of Service are in-app pages; Contact Support opens
+/// GitHub Issues; Rate the App opens the store listing once [AppConfig.isPublished]
+/// is flipped, and shows "Coming soon" until then.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, required this.controller, required this.tabs});
 
@@ -31,12 +42,12 @@ class SettingsScreen extends StatelessWidget {
     'DD.MM.YYYY', 'MM.DD.YYYY', 'YYYY.MM.DD',
   ];
 
-  void _toast(BuildContext context, String message) {
+  void _toast(BuildContext context, String message, {Duration? duration}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         content: Text(message),
-        duration: const Duration(milliseconds: 900),
+        duration: duration ?? const Duration(milliseconds: 900),
       ));
   }
 
@@ -66,6 +77,56 @@ class SettingsScreen extends StatelessWidget {
 
   void _push(BuildContext context, Widget page) {
     Navigator.of(context).push(fadePushRoute(page));
+  }
+
+  Future<void> _backupData(BuildContext context, PodController c) async {
+    try {
+      await BackupService.exportBackup(c);
+    } catch (_) {
+      if (context.mounted) _toast(context, 'Backup failed. Please try again.');
+    }
+  }
+
+  Future<void> _restoreBackup(BuildContext context, PodController c) async {
+    ParsedBackup? backup;
+    try {
+      backup = await BackupService.pickBackup();
+    } catch (e) {
+      if (context.mounted) {
+        _toast(context, e is FormatException ? e.message : "Couldn't read that file.",
+            duration: const Duration(seconds: 3));
+      }
+      return;
+    }
+    if (backup == null) return; // user cancelled the picker
+    if (!context.mounted) return;
+
+    final ok = await showConfirmDialog(
+      context: context,
+      title: 'Restore Backup?',
+      message: 'This replaces all current stock, history, settings and reminders with '
+          '${_describeBackup(backup)}. This cannot be undone.',
+      confirmLabel: 'Restore',
+      destructive: true,
+    );
+    if (ok != true) return;
+
+    try {
+      c.restoreFromBackupJson(backup.data);
+      if (context.mounted) _toast(context, 'Backup restored.');
+    } catch (_) {
+      if (context.mounted) {
+        _toast(context, "That backup file is damaged and couldn't be restored.",
+            duration: const Duration(seconds: 3));
+      }
+    }
+  }
+
+  String _describeBackup(ParsedBackup b) {
+    final when = b.exportedAt == null ? 'a backup' : 'the backup from ${fmtFullDate(b.exportedAt!)}';
+    final sessions = '${b.historyCount} session${b.historyCount == 1 ? '' : 's'}';
+    final activity = '${b.activityCount} activity ${b.activityCount == 1 ? 'entry' : 'entries'}';
+    return '$when ($sessions, $activity)';
   }
 
   @override
@@ -176,6 +237,14 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _dataBackupBlock(BuildContext context, PodController c) => Column(
         children: [
+          SettingsLinkRow(label: 'Back Up Data', onTap: () => _backupData(context, c)),
+          const SettingsDivider(),
+          SettingsLinkRow(
+            label: 'Restore Backup',
+            color: AppColors.endRed,
+            onTap: () => _restoreBackup(context, c),
+          ),
+          const SettingsDivider(),
           SettingsLinkRow(label: 'Export history as PDF', onTap: () => _exportPdf(context, c)),
           const SettingsDivider(),
           SettingsLinkRow(label: 'Export history as CSV', onTap: () => _exportCsv(context, c)),
@@ -215,15 +284,22 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _aboutBlock(BuildContext context) => Column(
         children: [
-          SettingsLinkRow(label: 'Help & FAQ', onTap: () => _toast(context, 'Coming soon')),
+          SettingsLinkRow(
+              label: 'Help & FAQ', onTap: () => _push(context, const HelpFaqScreen())),
           const SettingsDivider(),
-          SettingsLinkRow(label: 'Contact Support', onTap: () => _toast(context, 'Coming soon')),
+          SettingsLinkRow(
+              label: 'Contact Support',
+              onTap: () => _push(context, const ContactSupportScreen())),
           const SettingsDivider(),
-          SettingsLinkRow(label: 'Privacy Policy', onTap: () => _toast(context, 'Coming soon')),
+          SettingsLinkRow(
+              label: 'Privacy Policy',
+              onTap: () => _push(context, const PrivacyPolicyScreen())),
           const SettingsDivider(),
-          SettingsLinkRow(label: 'Terms of Service', onTap: () => _toast(context, 'Coming soon')),
+          SettingsLinkRow(
+              label: 'Terms of Service',
+              onTap: () => _push(context, const TermsOfServiceScreen())),
           const SettingsDivider(),
-          SettingsLinkRow(label: 'Rate the App', onTap: () => _toast(context, 'Coming soon')),
+          SettingsLinkRow(label: 'Rate the App', onTap: () => _rateApp(context)),
           const SettingsDivider(),
           Row(
             children: [
@@ -233,4 +309,12 @@ class SettingsScreen extends StatelessWidget {
           ),
         ],
       );
+
+  Future<void> _rateApp(BuildContext context) async {
+    if (!AppConfig.isPublished) {
+      _toast(context, "Coming soon — thanks for wanting to rate it!");
+      return;
+    }
+    await LinkService.openStoreListing(context);
+  }
 }

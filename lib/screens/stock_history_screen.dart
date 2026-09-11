@@ -56,7 +56,7 @@ class StockHistoryScreen extends StatelessWidget {
     // *inflated* by ListView.builder) would redo that work on every rebuild
     // regardless of scroll position. Visual output is unchanged: same
     // widgets, same order, same gaps.
-    final groups = items.isEmpty ? const <List<StockActivity>>[] : _groupByMonth(items);
+    final groups = items.isEmpty ? const <List<TrackedItemActivity>>[] : _groupByMonth(items);
     final itemCount = 2 + (items.isEmpty ? 0 : groups.length * 3);
 
     Widget itemBuilder(BuildContext context, int i) {
@@ -96,7 +96,7 @@ class StockHistoryScreen extends StatelessWidget {
   }
 
   /// The most recent positive-delta (restock) entry, or null if none yet.
-  StockActivity? _lastRestock(List<StockActivity> items) {
+  TrackedItemActivity? _lastRestock(List<TrackedItemActivity> items) {
     for (final e in items) {
       if (e.delta > 0) return e;
     }
@@ -104,8 +104,8 @@ class StockHistoryScreen extends StatelessWidget {
   }
 
   /// Split the newest-first activity into consecutive same-month groups.
-  List<List<StockActivity>> _groupByMonth(List<StockActivity> items) {
-    final groups = <List<StockActivity>>[];
+  List<List<TrackedItemActivity>> _groupByMonth(List<TrackedItemActivity> items) {
+    final groups = <List<TrackedItemActivity>>[];
     for (final e in items) {
       final last = groups.isEmpty ? null : groups.last.first.at;
       if (last == null || last.year != e.at.year || last.month != e.at.month) {
@@ -149,7 +149,7 @@ class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.stock, required this.lastRestock});
 
   final int stock;
-  final StockActivity? lastRestock;
+  final TrackedItemActivity? lastRestock;
 
   @override
   Widget build(BuildContext context) {
@@ -196,7 +196,7 @@ class _SummaryCard extends StatelessWidget {
 class _MonthCard extends StatelessWidget {
   const _MonthCard({required this.entries});
 
-  final List<StockActivity> entries;
+  final List<TrackedItemActivity> entries;
 
   @override
   Widget build(BuildContext context) {
@@ -224,7 +224,7 @@ class _MonthCard extends StatelessWidget {
 class _ActivityRow extends StatelessWidget {
   const _ActivityRow({required this.entry});
 
-  final StockActivity entry;
+  final TrackedItemActivity entry;
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +275,7 @@ class _ActivityRow extends StatelessWidget {
 class StockActivityRow extends StatelessWidget {
   const StockActivityRow({super.key, required this.entry});
 
-  final StockActivity entry;
+  final TrackedItemActivity entry;
 
   @override
   Widget build(BuildContext context) {

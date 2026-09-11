@@ -45,6 +45,12 @@ extension NotificationTriggerX on NotificationTrigger {
   /// Whether this trigger fires at a wall-clock time of day.
   bool get usesTimeOfDay =>
       this == NotificationTrigger.dailyTime || this == NotificationTrigger.siteRotation;
+
+  /// Bottom-tab index to switch to when a notification of this trigger is
+  /// tapped (0 Home / 1 Stock — see `RootTabController`). Every lifecycle and
+  /// time-of-day trigger is about the active pod, shown on Home; only Low
+  /// Stock is more useful pointing at the Stock tab.
+  int get targetTab => this == NotificationTrigger.lowStock ? 1 : 0;
 }
 
 /// A single, fully-editable notification the user can add/remove. Persisted as

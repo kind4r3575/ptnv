@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'screens/root_shell.dart';
 import 'services/notification_service.dart';
+import 'state/notification_rule.dart';
 import 'state/pod.dart';
 import 'state/root_tabs.dart';
 import 'theme/tokens.dart';
@@ -27,9 +30,26 @@ class PodTrackerApp extends StatefulWidget {
 class _PodTrackerAppState extends State<PodTrackerApp> {
   final PodController _controller = PodController();
   final RootTabController _tabs = RootTabController();
+  StreamSubscription<NotificationTrigger>? _tapSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Deep-link a notification tap to the relevant tab: while the app is
+    // already alive, via the stream; on a cold launch (app was fully
+    // closed), via the one-shot launch-details check. See
+    // NotificationService.onTapped / consumeInitialTrigger.
+    _tapSub = NotificationService.instance.onTapped.listen(_openTrigger);
+    NotificationService.instance.consumeInitialTrigger().then((trigger) {
+      if (trigger != null && mounted) _openTrigger(trigger);
+    });
+  }
+
+  void _openTrigger(NotificationTrigger trigger) => _tabs.goTo(trigger.targetTab);
 
   @override
   void dispose() {
+    _tapSub?.cancel();
     _controller.dispose();
     _tabs.dispose();
     super.dispose();

@@ -4,17 +4,20 @@ import '../state/pod.dart';
 import '../theme/tokens.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/option_picker_sheet.dart';
+import '../widgets/pod_type_picker_sheet.dart';
 import '../widgets/settings_parts.dart';
 
 /// The Pod Settings screen — Default Pod Duration, Low Stock Threshold, Pod Type
 /// and Grace Period. Pushed from the "Pod Settings" row in [SettingsScreen]
-/// (a detail page with a back button, no bottom bar).
+/// (a detail page with a back button, no bottom bar). Picking a Pod Type
+/// applies its own default duration/grace (see [PodTypePreset]) rather than
+/// just relabeling whatever Duration/Grace already say; both stay
+/// independently editable afterward via their own rows below.
 class PodSettingsScreen extends StatelessWidget {
   const PodSettingsScreen({super.key, required this.controller});
 
   final PodController controller;
 
-  static const List<String> _podTypes = ['Omnipod · 72h', 'Omnipod 5 · 72h', 'Dana · 72h'];
   static const List<int> _graceOptions = [0, 1, 2, 4, 8];
 
   static String _graceLabel(int h) =>
@@ -104,12 +107,7 @@ class PodSettingsScreen extends StatelessWidget {
           SettingsValueRow(
             label: 'Pod Type',
             value: c.podType,
-            onTap: () => pickStringOption(context,
-                title: 'Pod Type',
-                subtitle: 'Choose your pod model and default wear time.',
-                options: _podTypes,
-                current: c.podType,
-                onPicked: c.setPodType),
+            onTap: () => showPodTypePickerSheet(context, c),
           ),
           const SettingsDivider(),
           SettingsValueRow(

@@ -96,7 +96,7 @@ class NotificationsScreen extends StatelessWidget {
           _divider(),
           _ToggleRow(
             label: 'Quiet Hours',
-            subtitle: '22:00 – 07:00 · alerts muted',
+            subtitle: '22:00 – 07:00 · reminders still arrive, silently',
             value: c.quietHours,
             onChanged: c.setQuietHours,
           ),

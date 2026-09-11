@@ -232,11 +232,11 @@ class _EndPodSheetState extends State<EndPodSheet> {
 
   String _limitText(PodSession session, DateTime now) {
     switch (session.statusAt(now)) {
-      case PodStatus.onTrack:
+      case TrackedItemStatus.onTrack:
         return '${fmtHm(session.remaining(now))} left until the 72h limit';
-      case PodStatus.grace:
+      case TrackedItemStatus.grace:
         return '${fmtHm(session.graceLeft(now))} of grace left';
-      case PodStatus.late:
+      case TrackedItemStatus.late:
         return 'Pod stopped delivering ${fmtHm(session.overdue(now))} ago';
     }
   }
