@@ -19,13 +19,14 @@
   <img src="https://img.shields.io/badge/platforms-Android%20%7C%20iOS-informational" alt="Platforms">
   <img src="https://img.shields.io/badge/price-free-brightgreen" alt="Free">
   <img src="https://img.shields.io/badge/backend-none%20%E2%80%94%20fully%20offline-success" alt="No backend">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
 </p>
 
 ---
 
 ## Contents
 
-[About](#about) · [Features](#features) · [Privacy](#privacy) · [Roadmap](#roadmap) · [Tech stack](#tech-stack) · [Under the hood](#under-the-hood) · [Getting started](#getting-started) · [Status](#status)
+[About](#about) · [Features](#features) · [Privacy](#privacy) · [Roadmap](#roadmap) · [Tech stack](#tech-stack) · [Under the hood](#under-the-hood) · [Getting started](#getting-started) · [Status](#status) · [License](#license)
 
 ## About
 
@@ -151,3 +152,7 @@ Pod Tracker is a solo project, actively developed and not yet published to an ap
 It's also the project I use to demonstrate what a complete, production-shaped Flutter app looks like end to end — see [Under the hood](#under-the-hood) for the engineering details.
 
 Not affiliated with Insulet/Omnipod or any other pump manufacturer.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Free to use, modify, and share.

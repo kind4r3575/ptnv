@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/export_service.dart';
 import '../state/pod.dart';
 import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
@@ -14,9 +15,9 @@ import 'pod_settings_screen.dart';
 
 /// The Settings screen (Figma node `213:83`). Pod Settings and Notifications are
 /// their own pushed pages; Language & Format is functional inline and persists on
-/// [PodController]. The "Data & Backup" and "About & Support" rows are shown per
-/// design — the export/about taps only show "Coming soon", while Clear History
-/// and Reset to Defaults are live destructive actions.
+/// [PodController]. Export history (CSV/PDF, via [ExportService]) and both Data &
+/// Backup destructive actions are all live; the "About & Support" rows are shown
+/// per design but still just show "Coming soon".
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, required this.controller, required this.tabs});
 
@@ -30,13 +31,37 @@ class SettingsScreen extends StatelessWidget {
     'DD.MM.YYYY', 'MM.DD.YYYY', 'YYYY.MM.DD',
   ];
 
-  void _comingSoon(BuildContext context) {
+  void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('Coming soon'),
-        duration: Duration(milliseconds: 900),
+      ..showSnackBar(SnackBar(
+        content: Text(message),
+        duration: const Duration(milliseconds: 900),
       ));
+  }
+
+  Future<void> _exportCsv(BuildContext context, PodController c) async {
+    if (c.history.isEmpty) {
+      _toast(context, 'No session history to export yet.');
+      return;
+    }
+    try {
+      await ExportService.exportCsv(c.history);
+    } catch (_) {
+      if (context.mounted) _toast(context, 'Export failed. Please try again.');
+    }
+  }
+
+  Future<void> _exportPdf(BuildContext context, PodController c) async {
+    if (c.history.isEmpty) {
+      _toast(context, 'No session history to export yet.');
+      return;
+    }
+    try {
+      await ExportService.exportPdf(c.history);
+    } catch (_) {
+      if (context.mounted) _toast(context, 'Export failed. Please try again.');
+    }
   }
 
   void _push(BuildContext context, Widget page) {
@@ -151,9 +176,9 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _dataBackupBlock(BuildContext context, PodController c) => Column(
         children: [
-          SettingsLinkRow(label: 'Export history as PDF', onTap: () => _comingSoon(context)),
+          SettingsLinkRow(label: 'Export history as PDF', onTap: () => _exportPdf(context, c)),
           const SettingsDivider(),
-          SettingsLinkRow(label: 'Export history as CSV', onTap: () => _comingSoon(context)),
+          SettingsLinkRow(label: 'Export history as CSV', onTap: () => _exportCsv(context, c)),
           const SettingsDivider(),
           SettingsLinkRow(
             label: 'Clear History',
@@ -190,15 +215,15 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _aboutBlock(BuildContext context) => Column(
         children: [
-          SettingsLinkRow(label: 'Help & FAQ', onTap: () => _comingSoon(context)),
+          SettingsLinkRow(label: 'Help & FAQ', onTap: () => _toast(context, 'Coming soon')),
           const SettingsDivider(),
-          SettingsLinkRow(label: 'Contact Support', onTap: () => _comingSoon(context)),
+          SettingsLinkRow(label: 'Contact Support', onTap: () => _toast(context, 'Coming soon')),
           const SettingsDivider(),
-          SettingsLinkRow(label: 'Privacy Policy', onTap: () => _comingSoon(context)),
+          SettingsLinkRow(label: 'Privacy Policy', onTap: () => _toast(context, 'Coming soon')),
           const SettingsDivider(),
-          SettingsLinkRow(label: 'Terms of Service', onTap: () => _comingSoon(context)),
+          SettingsLinkRow(label: 'Terms of Service', onTap: () => _toast(context, 'Coming soon')),
           const SettingsDivider(),
-          SettingsLinkRow(label: 'Rate the App', onTap: () => _comingSoon(context)),
+          SettingsLinkRow(label: 'Rate the App', onTap: () => _toast(context, 'Coming soon')),
           const SettingsDivider(),
           Row(
             children: [
