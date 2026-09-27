@@ -100,7 +100,7 @@ class _PodTypePickerSheet extends StatelessWidget {
                     for (final preset in presets)
                       _PresetRow(
                         preset: preset,
-                        selected: preset.label == controller.podType,
+                        selected: preset.name == controller.podTypeName,
                         removable: customNames.contains(preset.name),
                         onTap: () {
                           controller.applyPodTypePreset(preset);

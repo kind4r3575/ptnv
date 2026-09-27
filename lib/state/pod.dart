@@ -112,8 +112,8 @@ class SessionRecord {
       );
 }
 
-/// A pod/pump model — its display label and the default wear/grace hours
-/// picking it applies to [PodController.defaultPodDurationHours] /
+/// A pod/pump model — its name and the default wear/grace hours picking it
+/// applies to [PodController.defaultPodDurationHours] /
 /// [PodController.gracePeriodHours]. The three bundled presets are
 /// illustrative starting points, not clinical guidance (see the Terms of
 /// Service medical disclaimer) — a user can add their own via
@@ -130,10 +130,6 @@ class PodTypePreset {
   final String name;
   final int durationHours;
   final int graceHours;
-
-  /// e.g. "Omnipod · 72h" — what's shown in the picker and stored as
-  /// [PodController.podType] once applied.
-  String get label => '$name · ${durationHours}h';
 
   static const List<PodTypePreset> builtIn = [
     PodTypePreset(name: 'Omnipod', durationHours: 72, graceHours: 8),
@@ -179,18 +175,11 @@ class PodController extends ChangeNotifier {
   Timer? _stockDebounce;
   int _pendingStockDelta = 0;
 
-  /// How many recent finished sessions [_avgDaysPerPod] averages over — recent
-  /// enough to reflect current habits, wide enough not to be thrown off by
-  /// one unusual week.
-  static const int _avgSessionWindow = 10;
-
   /// Caps on the newest-first activity/history lists so years of daily use
   /// don't grow either list — and the JSON blob [_save] re-encodes on every
   /// debounced write — without bound. Oldest entries fall off first.
   static const int _maxActivityEntries = 500;
   static const int _maxHistoryEntries = 365;
-
-  bool _reorderReminder = true;
 
   // --- Persistence (shared_preferences + JSON) -------------------------------
   SharedPreferences? _prefs;
@@ -240,27 +229,23 @@ class PodController extends ChangeNotifier {
   List<PodTypePreset> get podTypePresets => [...PodTypePreset.builtIn, ..._customPodTypes];
 
   String get reminderText => _formatNextReminder(nextReminderAt);
-  bool get reorderReminder => _reorderReminder;
   List<TrackedItemActivity> get activity => List.unmodifiable(_activity);
   List<SessionRecord> get history => List.unmodifiable(_history);
 
-  /// Real average wear time per pod, in days, from the most recently
-  /// finished sessions — every outcome counts, not just "completed": an
-  /// early swap or a stretched pod both changed how long that pod actually
-  /// lasted, which is exactly the rate this is estimating. Falls back to the
-  /// configured pod duration before any session history exists to learn from.
-  double get _avgDaysPerPod {
-    if (_history.isEmpty) return _defaultPodDurationHours / 24;
-    final recent = _history.take(_avgSessionWindow);
-    final avgHours =
-        recent.fold<double>(0, (sum, r) => sum + r.worn.inMinutes / 60) / recent.length;
-    return avgHours > 0 ? avgHours / 24 : _defaultPodDurationHours / 24;
-  }
+  /// How long one pod is expected to last, in days: the configured
+  /// [defaultPodDurationHours], so the default 72h reads as 3 days.
+  double get _daysPerPod => _defaultPodDurationHours / 24;
 
-  /// Estimated days of supply remaining: stock × the real recent average
-  /// wear time per pod ([_avgDaysPerPod]) — personalized to actual usage
-  /// instead of a flat assumption.
-  int get daysOfSupply => (_stock * _avgDaysPerPod).round();
+  /// Estimated days of supply remaining: stock × [_daysPerPod]. One pod
+  /// counts as a full planned wear cycle, which is what the user is
+  /// budgeting with when they look at this.
+  ///
+  /// Deliberately *not* averaged over recent finished sessions' real wear
+  /// time. That read as personalization but was trivially poisoned: a single
+  /// pod ended minutes after starting — a stray tap, or any run through the
+  /// app while trying it out — pulled the average near zero and made every
+  /// stock level show "≈ 0 days", including the run-out date on Home.
+  int get daysOfSupply => (_stock * _daysPerPod).round();
 
   /// Approximate date the stock runs out, from today.
   DateTime get runsOutDate => DateTime.now().add(Duration(days: daysOfSupply));
@@ -273,10 +258,14 @@ class PodController extends ChangeNotifier {
   /// otherwise the most recent finished session's. `null` if there's nothing
   /// yet to compare against. Surfaced on the Add Pod sheet so the site
   /// rotation reminder has something real to rotate away from.
+  ///
+  /// Only falls back to history when there's no active session at all — not
+  /// merely because the active one's site happens to be unset, which would
+  /// otherwise show stale historical data as if it reflected the current pod.
   ({String site, DateTime since})? get lastUsedSite {
     final active = _session;
-    if (active != null && active.site != 'Not set') {
-      return (site: active.site, since: active.startedAt);
+    if (active != null) {
+      return active.site == 'Not set' ? null : (site: active.site, since: active.startedAt);
     }
     if (_history.isEmpty) return null;
     final last = _history.first;
@@ -332,16 +321,10 @@ class PodController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setReorderReminder(bool value) {
-    if (_reorderReminder == value) return;
-    _reorderReminder = value;
-    notifyListeners();
-  }
-
   // --- Settings --------------------------------------------------------------
   int _defaultPodDurationHours = 72;
   int _lowStockThreshold = 3;
-  String _podType = 'Omnipod · 72h';
+  String _podTypeName = 'Omnipod';
   int _gracePeriodHours = PodSession.defaultGraceHours; // 8h, matches the model
   bool _siteRotationReminder = true;
 
@@ -363,7 +346,20 @@ class PodController extends ChangeNotifier {
 
   int get defaultPodDurationHours => _defaultPodDurationHours;
   int get lowStockThreshold => _lowStockThreshold;
-  String get podType => _podType;
+
+  /// "Omnipod · 72h" — the current Pod Type's name plus the *live* default
+  /// duration, recomputed on every read so it can't go stale the way a label
+  /// baked in at pick time would after a later Duration/Grace edit (see
+  /// [applyPodTypePreset]) or after a preset's own hours change across app
+  /// updates.
+  String get podType => '$_podTypeName · ${_defaultPodDurationHours}h';
+
+  /// Bare Pod Type name (e.g. "Omnipod"), for matching against
+  /// [PodTypePreset.name] in the picker. Unlike [podType], this never
+  /// carries the live hours suffix, so a Duration/Grace edit never makes it
+  /// stop matching the preset that's still actually selected.
+  String get podTypeName => _podTypeName;
+
   int get gracePeriodHours => _gracePeriodHours;
   bool get siteRotationReminder => _siteRotationReminder;
   bool get enableNotifications => _enableNotifications;
@@ -399,7 +395,7 @@ class PodController extends ChangeNotifier {
   /// editable afterward via their own rows; this only sets the starting
   /// point.
   void applyPodTypePreset(PodTypePreset preset) {
-    _podType = preset.label;
+    _podTypeName = preset.name;
     _defaultPodDurationHours = preset.durationHours.clamp(1, 240);
     _gracePeriodHours = preset.graceHours.clamp(0, 240);
     notifyListeners();
@@ -597,7 +593,7 @@ class PodController extends ChangeNotifier {
   void resetToDefaults() {
     _defaultPodDurationHours = 72;
     _lowStockThreshold = 3;
-    _podType = 'Omnipod · 72h';
+    _podTypeName = 'Omnipod';
     _gracePeriodHours = PodSession.defaultGraceHours;
     _siteRotationReminder = true;
     _enableNotifications = true;
@@ -628,13 +624,12 @@ class PodController extends ChangeNotifier {
     final s = _session;
     return {
       'stock': _stock,
-      'reorderReminder': _reorderReminder,
       'activity': _activity.map((e) => e.toJson()).toList(),
       'history': _history.map((e) => e.toJson()).toList(),
       'session': s?.toJson(),
       'defaultPodDurationHours': _defaultPodDurationHours,
       'lowStockThreshold': _lowStockThreshold,
-      'podType': _podType,
+      'podType': _podTypeName,
       'gracePeriodHours': _gracePeriodHours,
       'siteRotationReminder': _siteRotationReminder,
       'enableNotifications': _enableNotifications,
@@ -661,7 +656,6 @@ class PodController extends ChangeNotifier {
   /// rather than leaving a half-overwritten state.
   void restoreFromBackupJson(Map<String, dynamic> j) {
     final stock = j['stock'] as int? ?? _stock;
-    final reorder = j['reorderReminder'] as bool? ?? _reorderReminder;
     final activity = ((j['activity'] as List?) ?? const [])
         .map((e) => TrackedItemActivity.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -672,7 +666,7 @@ class PodController extends ChangeNotifier {
     final session = sessionJson != null ? PodSession.fromJson(sessionJson) : null;
     final duration = j['defaultPodDurationHours'] as int? ?? _defaultPodDurationHours;
     final lowStock = j['lowStockThreshold'] as int? ?? _lowStockThreshold;
-    final podType = j['podType'] as String? ?? _podType;
+    final podType = _podTypeNameFrom(j['podType'] as String? ?? _podTypeName);
     final grace = j['gracePeriodHours'] as int? ?? _gracePeriodHours;
     final siteRotation = j['siteRotationReminder'] as bool? ?? _siteRotationReminder;
     final enableNotif = j['enableNotifications'] as bool? ?? _enableNotifications;
@@ -701,7 +695,6 @@ class PodController extends ChangeNotifier {
     _pendingStockDelta = 0;
 
     _stock = stock;
-    _reorderReminder = reorder;
     _activity
       ..clear()
       ..addAll(activity);
@@ -711,7 +704,7 @@ class PodController extends ChangeNotifier {
     _session = session;
     _defaultPodDurationHours = duration;
     _lowStockThreshold = lowStock;
-    _podType = podType;
+    _podTypeName = podType;
     _gracePeriodHours = grace;
     _siteRotationReminder = siteRotation;
     _enableNotifications = enableNotif;
@@ -760,7 +753,6 @@ class PodController extends ChangeNotifier {
 
   // --- Persistence keys ------------------------------------------------------
   static const String _kStock = 'stock';
-  static const String _kReorder = 'reorderReminder';
   static const String _kActivity = 'activity';
   static const String _kHistory = 'history';
   static const String _kSession = 'session';
@@ -784,6 +776,18 @@ class PodController extends ChangeNotifier {
   static const String _kTimeFmt = 'timeFormat';
   static const String _kDateFmt = 'dateFormat';
 
+  /// [stored] is either the current bare-name format or a legacy baked
+  /// "name · Nh" label — every version before Pod Type was derived live
+  /// from the name plus the live default duration ([podType]) persisted the
+  /// baked form instead. Taking just the name from either shape means an
+  /// existing install migrates silently on its first load under this
+  /// version, instead of the picker finding no preset whose old, now
+  /// hours-stale label still matches.
+  static String _podTypeNameFrom(String stored) {
+    final sep = stored.indexOf(' · ');
+    return sep == -1 ? stored : stored.substring(0, sep);
+  }
+
   /// Restore all persisted state. Missing keys leave the in-memory defaults
   /// (seeds on first run) untouched.
   void _load() {
@@ -791,7 +795,6 @@ class PodController extends ChangeNotifier {
     if (p == null) return;
 
     if (p.containsKey(_kStock)) _stock = p.getInt(_kStock)!;
-    if (p.containsKey(_kReorder)) _reorderReminder = p.getBool(_kReorder)!;
 
     final act = p.getString(_kActivity);
     if (act != null) {
@@ -816,7 +819,7 @@ class PodController extends ChangeNotifier {
 
     _defaultPodDurationHours = p.getInt(_kDuration) ?? _defaultPodDurationHours;
     _lowStockThreshold = p.getInt(_kLowStock) ?? _lowStockThreshold;
-    _podType = p.getString(_kPodType) ?? _podType;
+    _podTypeName = _podTypeNameFrom(p.getString(_kPodType) ?? _podTypeName);
     _gracePeriodHours = p.getInt(_kGrace) ?? _gracePeriodHours;
     _siteRotationReminder = p.getBool(_kSiteRot) ?? _siteRotationReminder;
     _enableNotifications = p.getBool(_kEnableNotif) ?? _enableNotifications;
@@ -923,13 +926,12 @@ class PodController extends ChangeNotifier {
     final s = _session;
     await Future.wait([
       p.setInt(_kStock, _stock),
-      p.setBool(_kReorder, _reorderReminder),
       p.setString(_kActivity, jsonEncode(_activity.map((e) => e.toJson()).toList())),
       p.setString(_kHistory, jsonEncode(_history.map((e) => e.toJson()).toList())),
       p.setString(_kSession, s == null ? '' : jsonEncode(s.toJson())),
       p.setInt(_kDuration, _defaultPodDurationHours),
       p.setInt(_kLowStock, _lowStockThreshold),
-      p.setString(_kPodType, _podType),
+      p.setString(_kPodType, _podTypeName),
       p.setInt(_kGrace, _gracePeriodHours),
       p.setBool(_kSiteRot, _siteRotationReminder),
       p.setBool(_kEnableNotif, _enableNotifications),
@@ -1023,6 +1025,26 @@ class PodController extends ChangeNotifier {
     _ticker?.cancel();
     _ticker = null;
     notifyListeners();
+  }
+
+  /// Move the active pod's start to [startedAt], keeping its site, rated
+  /// duration and grace window. Everything derived from the start — end time,
+  /// grace end, countdown, progress, and the scheduled reminders via the
+  /// listener that resyncs them — recomputes off the new anchor.
+  ///
+  /// This is a correction, not a new session: stock is untouched and nothing
+  /// is logged, because the pod itself didn't change, only the record of when
+  /// it went on. No-op with no active pod, or when the time didn't move.
+  void updateSessionStart(DateTime startedAt) {
+    final current = _session;
+    if (current == null || startedAt == current.startedAt) return;
+    _session = PodSession(
+      startedAt: startedAt,
+      site: current.site,
+      durationHours: current.durationHours,
+      graceHours: current.graceHours,
+    );
+    notifyListeners(); // triggers the debounced save + notification resync
   }
 
   /// Begin a fresh pod. Defaults to starting now; pass [startedAt] to record a

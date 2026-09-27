@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
 
-/// How far back the "Custom" start time may be set.
+/// How far back the date field's calendar opens by default.
 const int _maxDaysBack = 30;
 
-/// Opens the time picker (Figma node `281:164`) over the calling sheet. Returns
-/// the chosen [DateTime] (minute precision), or null if cancelled.
+/// Opens the date/time picker over the calling sheet. Returns the chosen
+/// [DateTime] (minute precision), or null if cancelled.
 ///
-/// Reused for both "Start time" (Add Pod) and "End time" (End Pod) — the wording
-/// is driven by [title], [subtitle], [confirmLabel] and the [footnote] builder.
+/// The date half is Material 3's modal date picker ([showDatePicker]) opened
+/// from the field at the top; the time half is the app's own wheels (Figma
+/// node `281:164`). Reused for "Start time" (Add Pod), "End time" (End Pod)
+/// and editing the running pod's start from Home — the wording is driven by
+/// [title], [subtitle], [confirmLabel] and the [footnote] builder.
 Future<DateTime?> showStartTimePicker(
   BuildContext context, {
   required DateTime initial,
@@ -83,15 +86,24 @@ class _StartTimePickerSheetState extends State<_StartTimePickerSheet> {
   DateTime get _selected =>
       DateTime(_date.year, _date.month, _date.day, _hour, _minute);
 
-  bool get _canForward => _date.isBefore(_today);
-  bool get _canBack =>
-      _date.isAfter(_today.subtract(const Duration(days: _maxDaysBack)));
-
-  void _stepDay(int delta) {
-    final next = _date.add(Duration(days: delta));
-    if (next.isAfter(_today)) return;
-    if (next.isBefore(_today.subtract(const Duration(days: _maxDaysBack)))) return;
-    setState(() => _date = next);
+  /// Material 3's modal date picker, over this sheet. Only the day is taken
+  /// from it — the time keeps coming from the wheels below, so a pick never
+  /// silently resets the hour and minute the user already set.
+  ///
+  /// The window is the last [_maxDaysBack] days up to today, widened when
+  /// needed to include the value the sheet opened on: a pod worn far past its
+  /// grace window can have started before that window, and [showDatePicker]
+  /// requires its initial date to be inside the range.
+  Future<void> _pickDate() async {
+    final earliest = _today.subtract(const Duration(days: _maxDaysBack));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: _date.isBefore(earliest) ? _date : earliest,
+      lastDate: _date.isAfter(_today) ? _date : _today,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _date = DateTime(picked.year, picked.month, picked.day));
   }
 
   @override
@@ -133,7 +145,7 @@ class _StartTimePickerSheetState extends State<_StartTimePickerSheet> {
                   const SizedBox(height: 14),
                   _header(),
                   const SizedBox(height: 20),
-                  _dateStepper(),
+                  _dateField(),
                   const SizedBox(height: 18),
                   _timeWheels(),
                   const SizedBox(height: 14),
@@ -191,42 +203,30 @@ class _StartTimePickerSheetState extends State<_StartTimePickerSheet> {
     );
   }
 
-  Widget _dateStepper() {
-    Widget arrow(IconData icon, {required bool enabled, required VoidCallback onTap}) {
-      return GestureDetector(
-        onTap: enabled ? onTap : null,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: 40,
-          height: 48,
-          child: Icon(
-            icon,
-            size: 24,
-            color: enabled ? AppColors.slate : AppColors.slate.withValues(alpha: 0.3),
-          ),
+  Widget _dateField() {
+    return GestureDetector(
+      onTap: _pickDate,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceAlt2,
+          borderRadius: BorderRadius.circular(14),
         ),
-      );
-    }
-
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceAlt2,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          arrow(Icons.chevron_left_rounded, enabled: _canBack, onTap: () => _stepDay(-1)),
-          Expanded(
-            child: Center(
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.slate),
+            const SizedBox(width: 10),
+            Expanded(
               child: Text(
                 fmtDateStepper(_date, _today),
                 style: AppText.statValue.copyWith(fontSize: 15),
               ),
             ),
-          ),
-          arrow(Icons.chevron_right_rounded, enabled: _canForward, onTap: () => _stepDay(1)),
-        ],
+            const Icon(Icons.expand_more_rounded, size: 20, color: AppColors.slate),
+          ],
+        ),
       ),
     );
   }

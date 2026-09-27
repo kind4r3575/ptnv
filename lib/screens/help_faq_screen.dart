@@ -53,9 +53,10 @@ class HelpFaqScreen extends StatelessWidget {
         ),
         (
           'How is the run-out date calculated?',
-          'Pod Tracker estimates your days of supply and a projected run-out date '
-              'from your recent usage pattern and current stock — it updates '
-              'automatically as stock and history change.',
+          'Each pod in stock counts as one full wear cycle — your Pod Duration '
+              'setting, so 3 days per pod at the default 72 hours. Days of supply is '
+              'your stock times that, and the run-out date is that many days from '
+              'today. Both update as stock and Pod Duration change.',
         ),
         (
           "What's recorded in Session History?",

@@ -68,6 +68,23 @@ class _PodTrackerAppState extends State<PodTrackerApp> {
           seedColor: AppColors.navy,
           primary: AppColors.navy,
         ),
+        // Material's date picker already inherits Poppins from [fontFamily]
+        // above, but it keeps Material's own Roboto-tuned weights and letter
+        // spacing, which reads as a different typeface beside the app's cards.
+        // Restating each slot in [AppText]'s terms makes every calendar in the
+        // app match its surroundings — Add Pod, End Pod and the Home
+        // start-time editor all open this one dialog, and any future caller
+        // inherits the same type from here.
+        datePickerTheme: DatePickerThemeData(
+          backgroundColor: AppColors.white,
+          headerHelpStyle: AppText.eyebrow,
+          headerHeadlineStyle: AppText.sheetTitle.copyWith(fontSize: 24),
+          weekdayStyle: AppText.statLabel.copyWith(fontSize: 12, letterSpacing: 0),
+          // The day/year colours come from the picker's own state-driven
+          // foreground properties, so only the metrics here take effect.
+          dayStyle: AppText.statValue.copyWith(fontSize: 14),
+          yearStyle: AppText.statValue,
+        ),
       ),
       home: RootShell(controller: _controller, tabs: _tabs),
     );

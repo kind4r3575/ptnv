@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../state/pod.dart';
+import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
 
 // ===========================================================================
@@ -42,6 +43,27 @@ class AppBarWave extends StatelessWidget {
     );
   }
 }
+
+/// The standard [AppBarWave] back arrow, for a screen that may or may not be
+/// sitting on a pushed route.
+///
+/// Stock, History and Settings double as `RootShell`'s `IndexedStack` tabs,
+/// where this is the *only* route on the navigator: popping would leave the
+/// navigator empty and paint a black screen, so there it switches to the Home
+/// tab instead. An instance that really was pushed (Stock again, from Home's
+/// stock info row) pops as usual.
+Widget appBackButton(BuildContext context, RootTabController tabs) => IconButton(
+      onPressed: () {
+        final navigator = Navigator.of(context);
+        if (navigator.canPop()) {
+          navigator.pop();
+        } else {
+          tabs.goTo(0);
+        }
+      },
+      icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
+      splashRadius: 22,
+    );
 
 class _WavePainter extends CustomPainter {
   // amplitude, phase, frequency
@@ -180,9 +202,15 @@ class HomeBottomBar extends StatelessWidget {
 // ===========================================================================
 
 class CountdownCard extends StatelessWidget {
-  const CountdownCard({super.key, required this.session});
+  const CountdownCard({super.key, required this.session, this.onEditStart});
 
   final PodSession session;
+
+  /// Opens the pod's start date/time editor. Wired to both the big headline
+  /// stamp and the STARTED box: the headline is where the eye goes, but it's
+  /// [PodSession.startedAt] that is editable — the end, grace end and
+  /// countdown are all derived from it. Null leaves the card read-only.
+  final VoidCallback? onEditStart;
 
   @override
   Widget build(BuildContext context) {
@@ -239,16 +267,29 @@ class CountdownCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Center(child: Text(fmtFullDate(headline), style: AppText.cardDate)),
-          const SizedBox(height: 4),
-          Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(fmtClock(headline), style: AppText.bigTime),
+          GestureDetector(
+            onTap: onEditStart,
+            // Opaque only when there's something to tap, so a read-only card
+            // doesn't swallow gestures over the middle of itself.
+            behavior: onEditStart == null
+                ? HitTestBehavior.deferToChild
+                : HitTestBehavior.opaque,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(child: Text(fmtFullDate(headline), style: AppText.cardDate)),
+                const SizedBox(height: 4),
+                Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(fmtClock(headline), style: AppText.bigTime),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Center(child: Text(style.subtitle, style: AppText.caption)),
+              ],
             ),
           ),
-          const SizedBox(height: 2),
-          Center(child: Text(style.subtitle, style: AppText.caption)),
           const SizedBox(height: 14),
           const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 12),
@@ -277,7 +318,13 @@ class CountdownCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _StatBox(label: 'STARTED', value: fmtShortStamp(session.startedAt))),
+              Expanded(
+                child: _StatBox(
+                  label: 'STARTED',
+                  value: fmtShortStamp(session.startedAt),
+                  onTap: onEditStart,
+                ),
+              ),
               const SizedBox(width: 8),
               Expanded(child: _StatBox(label: style.secondLabel, value: secondValue)),
             ],
@@ -373,15 +420,25 @@ class _Badge extends StatelessWidget {
 }
 
 class _StatBox extends StatelessWidget {
-  const _StatBox({required this.label, required this.value, this.valueColor});
+  const _StatBox({
+    required this.label,
+    required this.value,
+    this.valueColor,
+    this.onTap,
+  });
 
   final String label;
   final String value;
   final Color? valueColor;
 
+  /// When set, the box is tappable and its label carries a pencil, so the one
+  /// editable stat on the card reads as editable instead of looking identical
+  /// to the computed ones beside it.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final box = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
         color: AppColors.cyanBg,
@@ -391,12 +448,22 @@ class _StatBox extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: AppText.statLabel),
+          Row(
+            children: [
+              Text(label, style: AppText.statLabel),
+              if (onTap != null) ...[
+                const SizedBox(width: 5),
+                const Icon(Icons.edit_rounded, size: 12, color: AppColors.slate),
+              ],
+            ],
+          ),
           const SizedBox(height: 4),
           Text(value, style: AppText.statValue.copyWith(color: valueColor ?? AppColors.navy)),
         ],
       ),
     );
+    if (onTap == null) return box;
+    return GestureDetector(onTap: onTap, behavior: HitTestBehavior.opaque, child: box);
   }
 }
 

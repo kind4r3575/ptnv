@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../state/notification_rule.dart';
 import '../state/pod.dart';
 import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
-import '../widgets/app_switch.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/page_transitions.dart';
+import 'notifications_screen.dart';
 import 'stock_history_screen.dart';
 
 /// The Pod Stock screen (Figma node `20:2`): adjust the pod count with the
-/// −/+ steppers, see the estimated days of supply (stock × 3), set an exact
-/// amount, review recent activity, and toggle the reorder reminder.
+/// −/+ steppers, see the estimated days of supply (stock × the configured pod
+/// duration, so 3 days per pod at the default 72h), set an exact
+/// amount, review recent activity, and open the notification settings.
 class StockScreen extends StatefulWidget {
   const StockScreen({super.key, required this.controller, required this.tabs});
 
@@ -54,11 +56,7 @@ class _StockScreenState extends State<StockScreen> {
               children: [
                 AppBarWave(
                   title: 'Pod Stock',
-                  leading: IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
-                    splashRadius: 22,
-                  ),
+                  leading: appBackButton(context, widget.tabs),
                 ),
                 Expanded(
                   child: SingleChildScrollView(
@@ -73,7 +71,7 @@ class _StockScreenState extends State<StockScreen> {
                         const SizedBox(height: 16),
                         _recentActivityCard(),
                         const SizedBox(height: 16),
-                        _reorderCard(),
+                        _notificationSettingsCard(),
                       ],
                     ),
                   ),
@@ -324,23 +322,51 @@ class _StockScreenState extends State<StockScreen> {
     );
   }
 
-  Widget _reorderCard() {
+  /// Replaces the old "Remind me to reorder" switch. That switch was wired to
+  /// a setting nothing ever read — the low-stock reminder is a
+  /// [NotificationRule] with [NotificationTrigger.lowStock], enforced in
+  /// `PodController._checkLowStock` — so flipping it changed nothing. This row
+  /// reports what that rule actually says and opens the page that owns it.
+  Widget _notificationSettingsCard() {
+    final on =
+        _c.rules.any((r) => r.enabled && r.trigger == NotificationTrigger.lowStock);
     return _card(
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Remind me to reorder', style: AppText.rowValue),
-                const SizedBox(height: 2),
-                Text('When stock drops to ${_c.lowStockThreshold} pods',
-                    style: AppText.sheetSubtitle),
-              ],
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          fadePushRoute(NotificationsScreen(controller: _c)),
+        ),
+        behavior: HitTestBehavior.opaque,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.cyanBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.notifications_none_rounded,
+                  size: 20, color: AppColors.blue),
             ),
-          ),
-          AppSwitch(value: _c.reorderReminder, onChanged: _c.setReorderReminder),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Notification settings', style: AppText.rowValue),
+                  const SizedBox(height: 2),
+                  Text(
+                    on
+                        ? 'Low stock reminder on · at ${_c.lowStockThreshold} pods'
+                        : 'Low stock reminder off',
+                    style: AppText.sheetSubtitle,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.slate, size: 22),
+          ],
+        ),
       ),
     );
   }

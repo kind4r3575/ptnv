@@ -7,6 +7,7 @@ import '../widgets/app_bottom_bar.dart';
 import '../widgets/end_pod_sheet.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/page_transitions.dart';
+import '../widgets/start_time_picker_sheet.dart';
 import '../widgets/tab_listenable_builder.dart';
 import 'notifications_screen.dart';
 import 'stock_screen.dart';
@@ -44,6 +45,25 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  /// Edit when the running pod was applied: the Material 3 modal date picker
+  /// for the day, the app's usual wheels for the time. Everything the card
+  /// shows is derived from the start, so saving re-anchors the whole countdown
+  /// and reschedules the reminders.
+  Future<void> _editStart(BuildContext context, PodSession session) async {
+    final picked = await showStartTimePicker(
+      context,
+      initial: session.startedAt,
+      confirmLabel: 'Save start time',
+      footnote: (d) => 'Ends ${fmtExpiry(d.add(Duration(hours: session.durationHours)))}',
+    );
+    if (picked == null) return;
+    // A pod can't have been applied in the future — the wheels can still land
+    // there on today's date — so clamp to now rather than start the countdown
+    // with negative elapsed time.
+    final now = DateTime.now();
+    controller.updateSessionStart(picked.isAfter(now) ? now : picked);
+  }
+
   Widget _body(BuildContext context) {
     if (controller.isLoading) return const HomeSkeleton();
 
@@ -64,7 +84,10 @@ class HomeScreen extends StatelessWidget {
               listenable: controller.secondTick,
               tabs: tabs,
               tabIndex: 0,
-              builder: (context) => CountdownCard(session: session),
+              builder: (context) => CountdownCard(
+                session: session,
+                onEditStart: () => _editStart(context, session),
+              ),
             ),
           ),
           const SizedBox(height: 22),

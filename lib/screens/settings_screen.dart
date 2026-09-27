@@ -145,11 +145,7 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 AppBarWave(
                   title: 'Settings',
-                  leading: IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
-                    splashRadius: 22,
-                  ),
+                  leading: appBackButton(context, tabs),
                 ),
                 Expanded(
                   child: ListView(

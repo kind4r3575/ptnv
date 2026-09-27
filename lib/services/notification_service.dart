@@ -63,30 +63,38 @@ bool _isQuietHour(DateTime t) {
 /// Android locks a channel's sound/vibration/importance in at first use, so
 /// reusing the normal channel with those flags toggled per-call wouldn't
 /// actually change anything after its first notification.
+///
+/// [critical] always overrides [muted]: "Critical Alerts" promises to break
+/// through even when the phone is silent, so it must bypass Quiet Hours
+/// rather than be silenced by it.
 NotificationDetails _buildDetails({
   required bool critical,
   required bool muted,
   required bool soundEnabled,
   required bool vibrationEnabled,
 }) {
-  final channelId = muted ? _channelQuiet : (critical ? _channelCritical : _channelReminders);
-  final channelName = muted ? 'Quiet reminders' : (critical ? 'Critical alerts' : 'Pod reminders');
+  final effectiveMuted = muted && !critical;
+  final channelId =
+      effectiveMuted ? _channelQuiet : (critical ? _channelCritical : _channelReminders);
+  final channelName =
+      effectiveMuted ? 'Quiet reminders' : (critical ? 'Critical alerts' : 'Pod reminders');
   final android = AndroidNotificationDetails(
     channelId,
     channelName,
-    channelDescription: muted
+    channelDescription: effectiveMuted
         ? 'Reminders delivered silently during Quiet Hours.'
         : 'Reminders for pod expiry, stock and rotation.',
-    importance: muted ? Importance.low : (critical ? Importance.max : Importance.high),
-    priority: muted ? Priority.low : (critical ? Priority.max : Priority.high),
-    playSound: !muted && soundEnabled,
-    enableVibration: !muted && vibrationEnabled,
+    importance: effectiveMuted ? Importance.low : (critical ? Importance.max : Importance.high),
+    priority: effectiveMuted ? Priority.low : (critical ? Priority.max : Priority.high),
+    playSound: !effectiveMuted && soundEnabled,
+    enableVibration: !effectiveMuted && vibrationEnabled,
     actions: _androidActions,
   );
   final darwin = DarwinNotificationDetails(
-    presentSound: !muted && soundEnabled,
-    interruptionLevel:
-        muted ? InterruptionLevel.passive : (critical ? InterruptionLevel.critical : InterruptionLevel.active),
+    presentSound: !effectiveMuted && soundEnabled,
+    interruptionLevel: effectiveMuted
+        ? InterruptionLevel.passive
+        : (critical ? InterruptionLevel.critical : InterruptionLevel.active),
     categoryIdentifier: _categorySnoozable,
   );
   return NotificationDetails(android: android, iOS: darwin, macOS: darwin);
@@ -211,8 +219,17 @@ class NotificationService {
 
   /// A plain tap (the notification body, `showsUserInterface: true` by
   /// default) always brings the app to the foreground and runs on the main
-  /// isolate, so this can safely push onto [_tapController].
+  /// isolate, so this can safely push onto [_tapController]. A Snooze tap is
+  /// meant to always go to [onBackgroundNotificationResponse] instead (see
+  /// its doc comment), but a platform can still deliver it here — e.g. iOS,
+  /// for an in-app banner tapped while the app is already foregrounded — so
+  /// this checks for it explicitly rather than assuming every response here
+  /// is a plain tap and silently dropping a snooze that lands on this path.
   void _onForegroundResponse(NotificationResponse response) {
+    if (response.actionId == _snoozeActionId) {
+      onBackgroundNotificationResponse(response);
+      return;
+    }
     final trigger = _triggerFromName(_decodePayload(response.payload)?['trigger'] as String?);
     if (trigger != null) _tapController.add(trigger);
   }
