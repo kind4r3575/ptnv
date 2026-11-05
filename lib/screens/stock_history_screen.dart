@@ -283,10 +283,16 @@ class StockActivityRow extends StatelessWidget {
     final color = positive ? AppColors.green : AppColors.endRed;
     return Row(
       children: [
-        SizedBox(
-          width: 36,
+        // A minimum width, not a fixed one. Deltas still line up with each
+        // other at the usual ±1..±99, but a wider one — a "Set exact amount"
+        // reconciliation can log +144 — widens this gutter instead of wrapping
+        // onto a second and third line inside a box too narrow to hold it.
+        ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 36),
           child: Text(
             positive ? '+${entry.delta}' : '${entry.delta}',
+            maxLines: 1,
+            softWrap: false,
             style: AppText.statValue.copyWith(color: color, fontWeight: FontWeight.w700),
           ),
         ),

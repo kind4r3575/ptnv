@@ -158,12 +158,22 @@ class _StockScreenState extends State<StockScreen> {
                 color: AppColors.endRed,
                 onTap: () => _c.adjustStock(-1),
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('${_c.stock}', style: AppText.bigTime.copyWith(fontSize: 56)),
-                  Text('pods', style: AppText.rowTitle),
-                ],
+              // Flexible + scaleDown so a four-digit stock (the cap is 9999)
+              // shrinks to fit between the two steppers instead of pushing the
+              // row wider than the card on a narrow screen. Same treatment the
+              // Home countdown gives its big clock.
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('${_c.stock}',
+                          style: AppText.bigTime.copyWith(fontSize: 56)),
+                    ),
+                    Text('pods', style: AppText.rowTitle),
+                  ],
+                ),
               ),
               _StepButton(
                 key: const ValueKey('stockPlus'),
