@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
+import 'pressable.dart';
 
 /// A pill chip used in the Add Pod (insertion site) and End Pod (reason) sheets.
 /// Selected = cyan-bg fill + 1.5px cyan border + navy SemiBold text; otherwise
@@ -19,7 +20,7 @@ class SelectableChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -106,7 +107,7 @@ class SegmentedToggle extends StatelessWidget {
 
   Widget _seg(String label, {required bool selected, required VoidCallback onTap}) {
     return Expanded(
-      child: GestureDetector(
+      child: Pressable(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Container(

@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'screens/root_shell.dart';
+import 'services/incoming_file_service.dart';
 import 'services/notification_service.dart';
 import 'state/notification_rule.dart';
 import 'state/pod.dart';
 import 'state/root_tabs.dart';
 import 'theme/tokens.dart';
+import 'widgets/backup_flows.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // required before SharedPreferences
@@ -30,7 +32,9 @@ class PodTrackerApp extends StatefulWidget {
 class _PodTrackerAppState extends State<PodTrackerApp> {
   final PodController _controller = PodController();
   final RootTabController _tabs = RootTabController();
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<NotificationTrigger>? _tapSub;
+  StreamSubscription<IncomingFile>? _fileSub;
 
   @override
   void initState() {
@@ -43,13 +47,27 @@ class _PodTrackerAppState extends State<PodTrackerApp> {
     NotificationService.instance.consumeInitialTrigger().then((trigger) {
       if (trigger != null && mounted) _openTrigger(trigger);
     });
+
+    // A backup opened from another app ("Open with Pod Tracker"), whether it
+    // launched the app or arrived while it was running. Subscribed before
+    // start() so a launch file isn't missed.
+    _fileSub = IncomingFileService.instance.files.listen(_openIncomingFile);
+    IncomingFileService.instance.start();
   }
 
   void _openTrigger(NotificationTrigger trigger) => _tabs.goTo(trigger.targetTab);
 
+  Future<void> _openIncomingFile(IncomingFile file) async {
+    await WidgetsBinding.instance.endOfFrame; // the navigator exists after the first frame
+    final context = _navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    await runImportFromBytes(context, _controller, file.bytes);
+  }
+
   @override
   void dispose() {
     _tapSub?.cancel();
+    _fileSub?.cancel();
     _controller.dispose();
     _tabs.dispose();
     super.dispose();
@@ -58,6 +76,7 @@ class _PodTrackerAppState extends State<PodTrackerApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'Pod Tracker',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

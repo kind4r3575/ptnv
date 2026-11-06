@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
+import 'pressable.dart';
 
 /// How far back the date field's calendar opens by default.
 const int _maxDaysBack = 30;
@@ -186,7 +187,7 @@ class _StartTimePickerSheetState extends State<_StartTimePickerSheet> {
             ],
           ),
         ),
-        GestureDetector(
+        Pressable(
           onTap: () => Navigator.of(context).pop(),
           behavior: HitTestBehavior.opaque,
           child: Container(
@@ -204,7 +205,7 @@ class _StartTimePickerSheetState extends State<_StartTimePickerSheet> {
   }
 
   Widget _dateField() {
-    return GestureDetector(
+    return Pressable(
       onTap: _pickDate,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -271,7 +272,7 @@ class _StartTimePickerSheetState extends State<_StartTimePickerSheet> {
   }
 
   Widget _primaryButton() {
-    return GestureDetector(
+    return Pressable(
       onTap: () => Navigator.of(context).pop(_selected),
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -287,7 +288,7 @@ class _StartTimePickerSheetState extends State<_StartTimePickerSheet> {
   }
 
   Widget _cancelButton() {
-    return GestureDetector(
+    return Pressable(
       onTap: () => Navigator.of(context).pop(),
       behavior: HitTestBehavior.opaque,
       child: Container(

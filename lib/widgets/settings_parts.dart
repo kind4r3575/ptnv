@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../theme/tokens.dart';
 import 'option_picker_sheet.dart';
+import 'pressable.dart';
 
 /// Shared building blocks for the Settings and Pod Settings screens: the white
 /// card, section header, divider, number box, value/chevron row and link row.
@@ -184,7 +185,7 @@ class SettingsValueRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Row(
@@ -215,7 +216,7 @@ class SettingsLinkRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Row(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
 import 'home_parts.dart';
+import 'pressable.dart';
 
 /// A pushed sub-page: back-button app bar over a scrollable body, in the
 /// app's standard layout. Used by Help & FAQ, Contact Support, Privacy
@@ -22,10 +23,9 @@ class SimplePage extends StatelessWidget {
           children: [
             AppBarWave(
               title: title,
-              leading: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
-                splashRadius: 22,
+              leading: PressableIconButton(
+                icon: Icons.arrow_back_rounded,
+                onTap: () => Navigator.of(context).pop(),
               ),
             ),
             Expanded(

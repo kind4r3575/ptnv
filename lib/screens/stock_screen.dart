@@ -7,6 +7,7 @@ import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/page_transitions.dart';
+import '../widgets/pressable.dart';
 import 'notifications_screen.dart';
 import 'stock_history_screen.dart';
 
@@ -269,7 +270,7 @@ class _StockScreenState extends State<StockScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              GestureDetector(
+              Pressable(
                 onTap: _setExact,
                 behavior: HitTestBehavior.opaque,
                 child: Container(
@@ -300,7 +301,7 @@ class _StockScreenState extends State<StockScreen> {
             children: [
               Text('Recent activity', style: AppText.rowValue),
               const Spacer(),
-              GestureDetector(
+              Pressable(
                 onTap: () => Navigator.of(context).push(
                   fadePushRoute(StockHistoryScreen(controller: _c, tabs: widget.tabs)),
                 ),
@@ -341,7 +342,7 @@ class _StockScreenState extends State<StockScreen> {
     final on =
         _c.rules.any((r) => r.enabled && r.trigger == NotificationTrigger.lowStock);
     return _card(
-      child: GestureDetector(
+      child: Pressable(
         onTap: () => Navigator.of(context).push(
           fadePushRoute(NotificationsScreen(controller: _c)),
         ),
@@ -391,7 +392,7 @@ class _StepButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -421,7 +422,7 @@ class _UndoButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(

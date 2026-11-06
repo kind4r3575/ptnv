@@ -6,6 +6,7 @@ import '../state/pod.dart';
 import '../theme/tokens.dart';
 import 'confirm_dialog.dart';
 import 'home_parts.dart';
+import 'pressable.dart';
 import 'sheet_parts.dart';
 import 'start_time_picker_sheet.dart';
 
@@ -230,7 +231,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
             ],
           ),
         ),
-        GestureDetector(
+        Pressable(
           onTap: () => Navigator.of(context).pop(),
           behavior: HitTestBehavior.opaque,
           child: Container(
@@ -250,7 +251,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
   /// [enabled] is false until the user picks an insertion site — the button
   /// greys out and taps are ignored so a site choice is required before start.
   Widget _startButton({required bool enabled}) {
-    return GestureDetector(
+    return Pressable(
       onTap: enabled ? _startPod : null,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -318,7 +319,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
   /// Replaces "Start Pod" when out of stock — pops the sheet and asks the
   /// bottom bar to open the Stock tab.
   Widget _goToStockButton() {
-    return GestureDetector(
+    return Pressable(
       onTap: _goToStock,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -348,7 +349,7 @@ class _AddPodSheetState extends State<AddPodSheet> {
   }
 
   Widget _cancelButton() {
-    return GestureDetector(
+    return Pressable(
       onTap: () => Navigator.of(context).pop(),
       behavior: HitTestBehavior.opaque,
       child: Container(

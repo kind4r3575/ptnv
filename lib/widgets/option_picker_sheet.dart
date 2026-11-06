@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
+import 'pressable.dart';
 
 /// A bottom-sheet single-choice picker (Figma node `294:287`). Slides up over a
 /// scrim with a drag handle, a title/subtitle header and a circular close
@@ -120,7 +121,7 @@ class _OptionPickerSheet<T> extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        GestureDetector(
+        Pressable(
           onTap: () => Navigator.of(context).pop(),
           behavior: HitTestBehavior.opaque,
           child: Container(
@@ -153,7 +154,7 @@ class _OptionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(

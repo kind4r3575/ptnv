@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/link_service.dart';
 import '../theme/tokens.dart';
+import '../widgets/pressable.dart';
 import '../widgets/settings_parts.dart';
 import '../widgets/simple_page.dart';
 
@@ -70,7 +71,7 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = filled ? AppColors.blue : AppColors.white;
     final fg = filled ? AppColors.white : AppColors.blue;
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(

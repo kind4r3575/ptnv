@@ -3,6 +3,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ptnv/main.dart';
 import 'package:ptnv/state/pod.dart';
 import 'package:ptnv/widgets/home_parts.dart';
+import 'package:ptnv/widgets/pressable.dart';
+
+/// Taps [finder] and lets the button's press play out, so its action has run
+/// by the time this returns — a [Pressable]'s action waits until its press has
+/// been on screen. Ends on a zero-length frame, so any animation the action
+/// started (a sheet sliding up, a route fading in) has begun, as a plain
+/// `tap` + `pump()` used to leave things.
+Future<void> tapButton(WidgetTester tester, Finder finder) async {
+  await tester.tap(finder);
+  await tester.pump();
+  await tester.pump(Pressable.pressInDuration + const Duration(milliseconds: 16));
+  await tester.pump();
+}
 
 void main() {
   final start = DateTime(2026, 5, 31, 20, 17);
@@ -59,8 +72,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1300));
 
       // Tap the center "+" in the bottom bar.
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pump();
+      await tapButton(tester, find.byIcon(Icons.add_rounded));
       await tester.pump(const Duration(milliseconds: 400)); // sheet slide-up
 
       expect(find.text('Start New Pod'), findsOneWidget);
@@ -68,12 +80,10 @@ void main() {
       expect(find.text('Start Pod'), findsOneWidget);
 
       // Switching the insertion site must not throw.
-      await tester.tap(find.text('Left arm'));
-      await tester.pump();
+      await tapButton(tester, find.text('Left arm'));
 
       // Start the pod → sheet dismisses, Home shows the on-track countdown.
-      await tester.tap(find.text('Start Pod'));
-      await tester.pump();
+      await tapButton(tester, find.text('Start Pod'));
       await tester.pump(const Duration(milliseconds: 400)); // sheet dismiss
 
       expect(find.text('Start New Pod'), findsNothing);
@@ -89,20 +99,17 @@ void main() {
       await tester.pumpWidget(const PodTrackerApp());
       await tester.pump(const Duration(milliseconds: 1300));
 
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pump();
+      await tapButton(tester, find.byIcon(Icons.add_rounded));
       await tester.pump(const Duration(milliseconds: 400));
 
       // Open the Custom start-time picker.
-      await tester.tap(find.text('Custom'));
-      await tester.pump();
+      await tapButton(tester, find.text('Custom'));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Start time'), findsOneWidget);
       expect(find.text('Set start time'), findsOneWidget);
 
       // Confirm → picker closes, back on the Add Pod sheet.
-      await tester.tap(find.text('Set start time'));
-      await tester.pump();
+      await tapButton(tester, find.text('Set start time'));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Start time'), findsNothing);
       expect(find.text('Start New Pod'), findsOneWidget);
@@ -118,42 +125,33 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1300));
 
       // Start a first pod so one is active.
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pump();
+      await tapButton(tester, find.byIcon(Icons.add_rounded));
       await tester.pump(const Duration(milliseconds: 400));
-      await tester.tap(find.text('Abdomen'));
-      await tester.pump();
-      await tester.tap(find.text('Start Pod'));
-      await tester.pump();
+      await tapButton(tester, find.text('Abdomen'));
+      await tapButton(tester, find.text('Start Pod'));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('ON TRACK'), findsOneWidget);
 
       // Open the sheet again and try to start another → confirmation appears.
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pump();
+      await tapButton(tester, find.byIcon(Icons.add_rounded));
       await tester.pump(const Duration(milliseconds: 400));
-      await tester.tap(find.text('Left arm'));
-      await tester.pump();
-      await tester.tap(find.text('Start Pod'));
-      await tester.pump();
+      await tapButton(tester, find.text('Left arm'));
+      await tapButton(tester, find.text('Start Pod'));
       await tester.pump(const Duration(milliseconds: 300)); // dialog fade-in
       expect(find.text('Start a new pod?'), findsOneWidget);
 
       // Cancel → dialog closes, still on the sheet, no replacement happened.
       // (The sheet has its own "Cancel" behind the dialog; tap the dialog's,
       // which is the topmost/last one.)
-      await tester.tap(find.text('Cancel').last);
-      await tester.pump();
+      await tapButton(tester, find.text('Cancel').last);
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Start a new pod?'), findsNothing);
       expect(find.text('Start New Pod'), findsOneWidget); // sheet still open
 
       // Confirm this time → sheet closes and Home shows the new pod on track.
-      await tester.tap(find.text('Start Pod'));
-      await tester.pump();
+      await tapButton(tester, find.text('Start Pod'));
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.text('Yes, start new'));
-      await tester.pump();
+      await tapButton(tester, find.text('Yes, start new'));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Start New Pod'), findsNothing);
       expect(find.text('ON TRACK'), findsOneWidget);
@@ -168,13 +166,11 @@ void main() {
       await tester.pumpWidget(const PodTrackerApp());
       await tester.pump(const Duration(milliseconds: 1300));
 
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pump();
+      await tapButton(tester, find.byIcon(Icons.add_rounded));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Start New Pod'), findsOneWidget);
 
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
+      await tapButton(tester, find.text('Cancel'));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Start New Pod'), findsNothing);
     });
@@ -191,8 +187,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1300));
 
       // The Home "End Pod" button is the only "End Pod" text before opening.
-      await tester.tap(find.text('End Pod'));
-      await tester.pump();
+      await tapButton(tester, find.text('End Pod'));
       await tester.pump(const Duration(milliseconds: 400));
     }
 
@@ -202,8 +197,7 @@ void main() {
       expect(find.text('REASON FOR CHANGE'), findsOneWidget);
 
       // The sheet's red "End Pod" button is the last "End Pod" in the tree.
-      await tester.tap(find.text('End Pod').last);
-      await tester.pump();
+      await tapButton(tester, find.text('End Pod').last);
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('End Pod Session'), findsNothing);
@@ -212,8 +206,7 @@ void main() {
 
     testWidgets('Cancel keeps the pod active', (tester) async {
       await openSheet(tester);
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
+      await tapButton(tester, find.text('Cancel'));
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('End Pod Session'), findsNothing);
@@ -222,15 +215,13 @@ void main() {
 
     testWidgets('END TIME Custom reuses the picker with End-time wording', (tester) async {
       await openSheet(tester);
-      await tester.tap(find.text('Custom'));
-      await tester.pump();
+      await tapButton(tester, find.text('Custom'));
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('End time'), findsOneWidget);
       expect(find.text('Set end time'), findsOneWidget);
 
-      await tester.tap(find.text('Set end time'));
-      await tester.pump();
+      await tapButton(tester, find.text('Set end time'));
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('End time'), findsNothing);
@@ -250,8 +241,7 @@ void main() {
 
       // Home shows an inventory icon in both the Stock info-row and the bottom
       // bar; the bottom-bar tab is the last one.
-      await tester.tap(find.byIcon(Icons.inventory_2_outlined).last);
-      await tester.pump();
+      await tapButton(tester, find.byIcon(Icons.inventory_2_outlined).last);
       await tester.pump(const Duration(milliseconds: 400)); // route transition
     }
 
@@ -261,23 +251,19 @@ void main() {
       expect(find.text('6'), findsOneWidget);
       expect(find.text('≈ 18 days'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('stockPlus')));
-      await tester.pump();
+      await tapButton(tester, find.byKey(const ValueKey('stockPlus')));
       expect(find.text('7'), findsOneWidget);
       expect(find.text('≈ 21 days'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('stockMinus')));
-      await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('stockMinus')));
-      await tester.pump();
+      await tapButton(tester, find.byKey(const ValueKey('stockMinus')));
+      await tapButton(tester, find.byKey(const ValueKey('stockMinus')));
       expect(find.text('5'), findsOneWidget);
       expect(find.text('≈ 15 days'), findsOneWidget);
     });
 
     testWidgets('See all opens the stock history', (tester) async {
       await openStock(tester);
-      await tester.tap(find.text('See all ›'));
-      await tester.pump();
+      await tapButton(tester, find.text('See all ›'));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Stock History'), findsOneWidget);
     });
@@ -293,8 +279,7 @@ void main() {
       await tester.pumpWidget(const PodTrackerApp());
       await tester.pump(const Duration(milliseconds: 1300));
 
-      await tester.tap(find.byIcon(Icons.history_rounded));
-      await tester.pump();
+      await tapButton(tester, find.byIcon(Icons.history_rounded));
       await tester.pump(const Duration(milliseconds: 400)); // route transition
     }
 
@@ -319,8 +304,7 @@ void main() {
       await tester.pumpWidget(const PodTrackerApp());
       await tester.pump(const Duration(milliseconds: 1300));
 
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pump();
+      await tapButton(tester, find.byIcon(Icons.settings_outlined));
       await tester.pump(const Duration(milliseconds: 400)); // route transition
     }
 
@@ -336,8 +320,7 @@ void main() {
       await openSettings(tester);
       expect(find.text('2 hours'), findsOneWidget);
 
-      await tester.tap(find.text('Grace Period'));
-      await tester.pump();
+      await tapButton(tester, find.text('Grace Period'));
       expect(find.text('4 hours'), findsOneWidget);
       expect(find.text('2 hours'), findsNothing);
     });
@@ -348,8 +331,7 @@ void main() {
       final toggle = find.descendant(of: sound, matching: find.byType(Switch));
       expect(tester.widget<Switch>(toggle).value, isTrue);
 
-      await tester.tap(toggle);
-      await tester.pump();
+      await tapButton(tester, toggle);
       expect(tester.widget<Switch>(toggle).value, isFalse);
     });
 
@@ -358,8 +340,7 @@ void main() {
       expect(find.widgetWithText(AppBarWave, 'Settings'), findsOneWidget);
 
       // Tap the Stock tab in the bottom bar (the bar icon is the last one).
-      await tester.tap(find.byIcon(Icons.inventory_2_outlined).last);
-      await tester.pump();
+      await tapButton(tester, find.byIcon(Icons.inventory_2_outlined).last);
       await tester.pump(const Duration(milliseconds: 400)); // route transition
 
       // Previously this only showed "Coming soon"; now it opens the Stock screen.

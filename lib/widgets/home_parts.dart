@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../state/pod.dart';
 import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
+import 'pressable.dart';
 
 // ===========================================================================
 // Top app bar — "Pod Tracker" wordmark + decorative wave.
@@ -52,8 +53,9 @@ class AppBarWave extends StatelessWidget {
 /// navigator empty and paint a black screen, so there it switches to the Home
 /// tab instead. An instance that really was pushed (Stock again, from Home's
 /// stock info row) pops as usual.
-Widget appBackButton(BuildContext context, RootTabController tabs) => IconButton(
-      onPressed: () {
+Widget appBackButton(BuildContext context, RootTabController tabs) => PressableIconButton(
+      icon: Icons.arrow_back_rounded,
+      onTap: () {
         final navigator = Navigator.of(context);
         if (navigator.canPop()) {
           navigator.pop();
@@ -61,8 +63,6 @@ Widget appBackButton(BuildContext context, RootTabController tabs) => IconButton
           tabs.goTo(0);
         }
       },
-      icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
-      splashRadius: 22,
     );
 
 class _WavePainter extends CustomPainter {
@@ -286,7 +286,7 @@ class _HomeBottomBarState extends State<HomeBottomBar> with TickerProviderStateM
     double raised = 0,
     VoidCallback? onTap,
   }) {
-    return GestureDetector(
+    return Pressable(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Transform.translate(
@@ -463,7 +463,7 @@ class CountdownCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          GestureDetector(
+          Pressable(
             onTap: onEditStart,
             // Opaque only when there's something to tap, so a read-only card
             // doesn't swallow gestures over the middle of itself.
@@ -659,7 +659,7 @@ class _StatBox extends StatelessWidget {
       ),
     );
     if (onTap == null) return box;
-    return GestureDetector(onTap: onTap, behavior: HitTestBehavior.opaque, child: box);
+    return Pressable(onTap: onTap, behavior: HitTestBehavior.opaque, child: box);
   }
 }
 
@@ -711,7 +711,7 @@ class EndPodButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onPressed,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -812,7 +812,7 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(

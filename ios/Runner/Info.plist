@@ -8,6 +8,28 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Ptnv</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<!-- Data transfer: offer Pod Tracker under "Open in…" / the share sheet
+		     for JSON files, so a backup sent from the old phone imports in one
+		     tap. Handled by IncomingFilePlugin in AppDelegate.swift. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Pod Tracker backup</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.json</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

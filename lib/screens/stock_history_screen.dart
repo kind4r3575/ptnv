@@ -5,6 +5,7 @@ import '../state/root_tabs.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/home_parts.dart';
+import '../widgets/pressable.dart';
 
 /// Full Pod Stock activity log (Figma node `243:85`), reached from "See all ›"
 /// on the Stock screen. Shows an on-hand / last-restock summary card, then the
@@ -29,10 +30,9 @@ class StockHistoryScreen extends StatelessWidget {
               children: [
                 AppBarWave(
                   title: 'Stock history',
-                  leading: IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
-                    splashRadius: 22,
+                  leading: PressableIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    onTap: () => Navigator.of(context).pop(),
                   ),
                 ),
                 Expanded(child: _body()),

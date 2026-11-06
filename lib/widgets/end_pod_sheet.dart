@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../state/pod.dart';
 import '../theme/tokens.dart';
+import 'pressable.dart';
 import 'sheet_parts.dart';
 import 'start_time_picker_sheet.dart';
 
@@ -171,7 +172,7 @@ class _EndPodSheetState extends State<EndPodSheet> {
             ],
           ),
         ),
-        GestureDetector(
+        Pressable(
           onTap: () => Navigator.of(context).pop(),
           behavior: HitTestBehavior.opaque,
           child: Container(
@@ -244,7 +245,7 @@ class _EndPodSheetState extends State<EndPodSheet> {
   /// [enabled] is false until the user picks a reason for change — the button
   /// greys out and taps are ignored so a reason is required before ending.
   Widget _endButton({required bool enabled}) {
-    return GestureDetector(
+    return Pressable(
       onTap: enabled ? _endPod : null,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -269,7 +270,7 @@ class _EndPodSheetState extends State<EndPodSheet> {
   }
 
   Widget _cancelButton() {
-    return GestureDetector(
+    return Pressable(
       onTap: () => Navigator.of(context).pop(),
       behavior: HitTestBehavior.opaque,
       child: Container(

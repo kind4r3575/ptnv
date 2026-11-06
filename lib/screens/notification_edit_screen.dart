@@ -6,6 +6,7 @@ import '../theme/tokens.dart';
 import '../widgets/app_switch.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/home_parts.dart';
+import '../widgets/pressable.dart';
 import '../widgets/sheet_parts.dart';
 
 /// Full-screen editor for a single [NotificationRule]. Reached by tapping a rule
@@ -65,10 +66,9 @@ class _NotificationEditScreenState extends State<NotificationEditScreen> {
           children: [
             AppBarWave(
               title: _isNew ? 'New notification' : 'Edit notification',
-              leading: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
-                splashRadius: 22,
+              leading: PressableIconButton(
+                icon: Icons.arrow_back_rounded,
+                onTap: () => Navigator.of(context).pop(),
               ),
             ),
             Expanded(
@@ -112,7 +112,7 @@ class _NotificationEditScreenState extends State<NotificationEditScreen> {
 
   Widget _situationTile(NotificationTrigger t) {
     final selected = _draft.trigger == t;
-    return GestureDetector(
+    return Pressable(
       onTap: () => setState(() => _draft = _draft.copyWith(trigger: t)),
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -254,7 +254,7 @@ class _NotificationEditScreenState extends State<NotificationEditScreen> {
   Widget _timePickerRow() {
     final m = _draft.timeOfDayMinutes;
     final time = TimeOfDay(hour: m ~/ 60, minute: m % 60);
-    return GestureDetector(
+    return Pressable(
       onTap: () async {
         final picked = await showTimePicker(context: context, initialTime: time);
         if (picked != null) {
@@ -287,7 +287,7 @@ class _NotificationEditScreenState extends State<NotificationEditScreen> {
     required String unit,
     required ValueChanged<int> onChanged,
   }) {
-    Widget btn(IconData icon, VoidCallback onTap) => GestureDetector(
+    Widget btn(IconData icon, VoidCallback onTap) => Pressable(
           onTap: onTap,
           behavior: HitTestBehavior.opaque,
           child: Container(
@@ -353,7 +353,7 @@ class _NotificationEditScreenState extends State<NotificationEditScreen> {
         child: child,
       );
 
-  Widget _saveButton() => GestureDetector(
+  Widget _saveButton() => Pressable(
         onTap: _save,
         behavior: HitTestBehavior.opaque,
         child: Container(
@@ -374,7 +374,7 @@ class _NotificationEditScreenState extends State<NotificationEditScreen> {
         ),
       );
 
-  Widget _deleteButton() => GestureDetector(
+  Widget _deleteButton() => Pressable(
         onTap: _delete,
         behavior: HitTestBehavior.opaque,
         child: Container(
@@ -496,7 +496,7 @@ class _CustomOffsetSheetState extends State<_CustomOffsetSheet> {
                         children: [
                           for (var i = 0; i < _units.length; i++)
                             Expanded(
-                              child: GestureDetector(
+                              child: Pressable(
                                 onTap: () => setState(() => _unit = i),
                                 behavior: HitTestBehavior.opaque,
                                 child: Container(
@@ -524,7 +524,7 @@ class _CustomOffsetSheetState extends State<_CustomOffsetSheet> {
                 ],
               ),
               const SizedBox(height: 20),
-              GestureDetector(
+              Pressable(
                 onTap: _done,
                 behavior: HitTestBehavior.opaque,
                 child: Container(

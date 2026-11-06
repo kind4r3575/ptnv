@@ -12,7 +12,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const LegalDocPage(
       title: 'Privacy Policy',
-      lastUpdated: 'September 11, 2026',
+      lastUpdated: 'November 5, 2026',
       intro: 'Pod Tracker is built to work fully offline, and this policy is short '
           "because there just isn't much to say: the app doesn't collect your data, "
           'because it has no way to send it anywhere.',
@@ -46,9 +46,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
         ),
         LegalSection(
           'Sharing with third parties',
-          "There's nothing to share, because nothing leaves your device. Pod Tracker "
-              "doesn't work with ad networks, analytics vendors, or data brokers, and has "
-              "none to disclose your data to.",
+          "There's nothing to share, because nothing leaves your device unless you "
+              "export it yourself. Pod Tracker doesn't work with ad networks, analytics "
+              "vendors, or data brokers, and has none to disclose your data to.",
         ),
         LegalSection(
           'Exporting your history',
@@ -57,10 +57,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
               'portal, cloud storage — is entirely your choice, and happens outside the app.',
         ),
         LegalSection(
+          'Moving your data to another phone',
+          '"Export All Data" builds one file containing everything Pod Tracker stores — '
+              'stock, history, the pod in use, settings, and reminders — and either hands '
+              "it to your device's share sheet or saves it where you choose. The file is "
+              'not encrypted: anyone who has it can read its contents, so send it only '
+              'somewhere you trust. "Import Data," or opening that file with Pod Tracker, '
+              'reads it on the other phone. The app never uploads the file anywhere itself.',
+        ),
+        LegalSection(
           'Deleting your data',
-          'Uninstalling Pod Tracker deletes everything it stored. "Clear History" and '
-              '"Reset to Defaults," in Settings, remove data immediately without '
-              'uninstalling.',
+          'Uninstalling Pod Tracker deletes everything it stored — use "Export All Data" '
+              'first if you want to keep it. "Clear History" and "Reset to Defaults," in '
+              'Settings, remove data immediately without uninstalling. Exported files are '
+              'yours to delete wherever you saved or sent them.',
         ),
         LegalSection(
           "Children's privacy",

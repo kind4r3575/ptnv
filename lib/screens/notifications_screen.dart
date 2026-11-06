@@ -7,6 +7,7 @@ import '../widgets/app_switch.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/option_picker_sheet.dart';
 import '../widgets/page_transitions.dart';
+import '../widgets/pressable.dart';
 import 'notification_edit_screen.dart';
 
 /// The dedicated Notifications editor (reached from Settings and the Home
@@ -39,10 +40,9 @@ class NotificationsScreen extends StatelessWidget {
               children: [
                 AppBarWave(
                   title: 'Notifications',
-                  leading: IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
-                    splashRadius: 22,
+                  leading: PressableIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    onTap: () => Navigator.of(context).pop(),
                   ),
                 ),
                 Expanded(
@@ -138,7 +138,7 @@ class NotificationsScreen extends StatelessWidget {
             ),
           ],
         const SizedBox(height: 12),
-        GestureDetector(
+        Pressable(
           onTap: () => _openEditor(context),
           behavior: HitTestBehavior.opaque,
           child: Container(
@@ -218,7 +218,7 @@ class _RuleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dim = !rule.enabled;
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Row(
@@ -300,7 +300,7 @@ class _ValueRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Row(

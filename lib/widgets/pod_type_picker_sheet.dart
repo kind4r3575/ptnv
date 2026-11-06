@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../state/pod.dart';
 import '../theme/tokens.dart';
 import 'confirm_dialog.dart';
+import 'pressable.dart';
 
 /// Opens the Pod Type picker (Pod Settings). Lists every bundled and
 /// user-added [PodTypePreset]; picking one applies its duration/grace as the
@@ -109,7 +110,7 @@ class _PodTypePickerSheet extends StatelessWidget {
                         onRemove: () => _removeCustomType(context, preset),
                       ),
                     const SizedBox(height: 6),
-                    GestureDetector(
+                    Pressable(
                       onTap: () => _addCustomType(context),
                       behavior: HitTestBehavior.opaque,
                       child: Container(
@@ -151,7 +152,7 @@ class _PodTypePickerSheet extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        GestureDetector(
+        Pressable(
           onTap: () => Navigator.of(context).pop(),
           behavior: HitTestBehavior.opaque,
           child: Container(
@@ -189,7 +190,7 @@ class _PresetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -220,7 +221,7 @@ class _PresetRow extends StatelessWidget {
             ),
             if (selected) const Icon(Icons.check_rounded, size: 22, color: AppColors.blue),
             if (removable)
-              GestureDetector(
+              Pressable(
                 onTap: onRemove,
                 behavior: HitTestBehavior.opaque,
                 child: const Padding(
@@ -329,7 +330,7 @@ class _AddCustomPodTypeSheetState extends State<_AddCustomPodTypeSheet> {
                 ],
               ),
               const SizedBox(height: 20),
-              GestureDetector(
+              Pressable(
                 onTap: _canAdd ? _add : null,
                 behavior: HitTestBehavior.opaque,
                 child: Container(

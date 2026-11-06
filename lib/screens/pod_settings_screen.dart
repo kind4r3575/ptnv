@@ -5,6 +5,7 @@ import '../theme/tokens.dart';
 import '../widgets/home_parts.dart';
 import '../widgets/option_picker_sheet.dart';
 import '../widgets/pod_type_picker_sheet.dart';
+import '../widgets/pressable.dart';
 import '../widgets/settings_parts.dart';
 
 /// The Pod Settings screen — Default Pod Duration, Low Stock Threshold, Pod Type
@@ -37,10 +38,9 @@ class PodSettingsScreen extends StatelessWidget {
               children: [
                 AppBarWave(
                   title: 'Pod Settings',
-                  leading: IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navy),
-                    splashRadius: 22,
+                  leading: PressableIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    onTap: () => Navigator.of(context).pop(),
                   ),
                 ),
                 Expanded(

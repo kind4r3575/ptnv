@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
+import '../widgets/pressable.dart';
 import '../widgets/settings_parts.dart';
 import '../widgets/simple_page.dart';
 
@@ -110,6 +111,28 @@ class HelpFaqScreen extends StatelessWidget {
               'Tracker works the same from the moment you install it.',
         ),
         (
+          'How do I move my data to a new phone?',
+          'On the old phone, go to Settings → Data & Backup → Export All Data → '
+              '"Send to another phone or app", and send the file to yourself — a '
+              'messenger, email, Quick Share, or AirDrop all work. On the new phone, '
+              'tap the file and open it with Pod Tracker (or use Settings → Data & '
+              'Backup → Import Data). Stock, history, the pod in use, settings, and '
+              'reminders all come across — including between Android and iPhone.',
+        ),
+        (
+          'Will I lose my data if I reinstall the app?',
+          'Uninstalling deletes everything Pod Tracker stored. Before you '
+              'uninstall, use Export All Data → "Save to this phone" (or send it to '
+              'yourself), then Import Data after reinstalling.',
+        ),
+        (
+          'What if the new phone already has some data?',
+          'Import asks what to do. "Merge" keeps the sessions and stock entries '
+              'already on this phone and adds the ones from the file; settings and '
+              'reminders come from the file. "Replace everything" makes this phone '
+              'an exact copy of the file.',
+        ),
+        (
           'What does "Reset to Defaults" actually reset?',
           'Pod, Notification, and Language/Format settings return to their '
               'factory defaults. Your stock and session history are kept.',
@@ -180,7 +203,7 @@ class _FaqTileState extends State<_FaqTile> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
+        Pressable(
           onTap: () => setState(() => _open = !_open),
           behavior: HitTestBehavior.opaque,
           child: Row(

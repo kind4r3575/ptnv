@@ -184,6 +184,12 @@ class PodController extends ChangeNotifier {
   // --- Persistence (shared_preferences + JSON) -------------------------------
   SharedPreferences? _prefs;
   bool _ready = false; // becomes true after the initial load; gates saving
+  final Completer<void> _loaded = Completer<void>();
+
+  /// Completes once saved state has been read from disk. An import has to
+  /// wait for this, or the initial load would overwrite what it imported.
+  Future<void> get loaded => _loaded.future;
+
   Timer? _saveDebounce;
   static const Duration _saveDelay = Duration(milliseconds: 400);
 
@@ -649,84 +655,131 @@ class PodController extends ChangeNotifier {
     };
   }
 
-  /// Replaces every persisted field with what's in [j] (the `data` object of
-  /// a parsed backup — see `BackupService.pickBackup`). Everything is parsed
-  /// into locals first and only assigned once all of it succeeds, so a
-  /// corrupt or hand-edited file throws before any current data is touched
-  /// rather than leaving a half-overwritten state.
-  void restoreFromBackupJson(Map<String, dynamic> j) {
-    final stock = j['stock'] as int? ?? _stock;
-    final activity = ((j['activity'] as List?) ?? const [])
-        .map((e) => TrackedItemActivity.fromJson(e as Map<String, dynamic>))
-        .toList();
-    final history = ((j['history'] as List?) ?? const [])
-        .map((e) => SessionRecord.fromJson(e as Map<String, dynamic>))
-        .toList();
-    final sessionJson = j['session'] as Map<String, dynamic>?;
-    final session = sessionJson != null ? PodSession.fromJson(sessionJson) : null;
-    final duration = j['defaultPodDurationHours'] as int? ?? _defaultPodDurationHours;
-    final lowStock = j['lowStockThreshold'] as int? ?? _lowStockThreshold;
-    final podType = _podTypeNameFrom(j['podType'] as String? ?? _podTypeName);
-    final grace = j['gracePeriodHours'] as int? ?? _gracePeriodHours;
-    final siteRotation = j['siteRotationReminder'] as bool? ?? _siteRotationReminder;
-    final enableNotif = j['enableNotifications'] as bool? ?? _enableNotifications;
-    final sound = j['soundEnabled'] as bool? ?? _soundEnabled;
-    final vibration = j['vibrationEnabled'] as bool? ?? _vibrationEnabled;
-    final critical = j['criticalAlerts'] as bool? ?? _criticalAlerts;
-    final lowStockAlert = j['lowStockAlert'] as bool? ?? _lowStockAlert;
-    final hidePrev = j['hidePreviews'] as bool? ?? _hidePreviews;
-    final quiet = j['quietHours'] as bool? ?? _quietHours;
-    final snooze = j['snoozeDuration'] as String? ?? _snoozeDuration;
-    final reminderHours = (j['reminderHours'] as List?)?.map((e) => e as int).toList() ??
-        List<int>.from(_reminderHours);
-    final rules = ((j['rules'] as List?) ?? const [])
-        .map((e) => NotificationRule.fromJson(e as Map<String, dynamic>))
-        .toList();
-    final customPodTypes = ((j['customPodTypes'] as List?) ?? const [])
-        .map((e) => PodTypePreset.fromJson(e as Map<String, dynamic>))
-        .toList();
-    final language = j['language'] as String? ?? _language;
-    final timeFormat = j['timeFormat'] as String? ?? _timeFormat;
-    final dateFormat = j['dateFormat'] as String? ?? _dateFormat;
+  /// Whether this phone has anything a full replace would throw away: past
+  /// sessions, stock activity, or a pod in use. Settings alone don't count,
+  /// since a fresh install has (default) settings too. Decides whether an
+  /// import asks Replace vs Merge, or just confirms.
+  bool get hasUserData => _history.isNotEmpty || _activity.isNotEmpty || _session != null;
 
-    // Everything parsed cleanly — commit it all at once.
+  /// Replaces every persisted field with what's in [j] (the `data` object of
+  /// a parsed backup — see `BackupService.parse`). The whole file is parsed
+  /// before anything is assigned, so a corrupt or hand-edited file throws
+  /// before any current data is touched rather than leaving a
+  /// half-overwritten state.
+  void restoreFromBackupJson(Map<String, dynamic> j) {
+    final b = _BackupSnapshot.parse(j, this);
+    // A pending −/+ burst belongs to the state being replaced — drop it.
+    _stockDebounce?.cancel();
+    _stockDebounce = null;
+    _pendingStockDelta = 0;
+    _applySnapshot(b);
+  }
+
+  /// Combines the backup in [j] with what's already on this phone — for
+  /// someone who started using the new phone before importing:
+  ///
+  /// * History and stock activity: both sides, newest first, with entries
+  ///   present on both (same timestamps) kept once.
+  /// * Custom pod types: the backup's, plus any only this phone has.
+  /// * Pod in use: whichever was placed more recently.
+  /// * Stock count: from whichever side's stock changed most recently (its
+  ///   newest activity entry), since a single number can't be combined.
+  /// * Settings, reminders and language/format: from the backup, so the new
+  ///   phone ends up configured like the old one.
+  ///
+  /// Throws, without touching current data, on the same bad input as
+  /// [restoreFromBackupJson].
+  void mergeFromBackupJson(Map<String, dynamic> j) {
+    final b = _BackupSnapshot.parse(j, this);
+    // Log any −/+ burst first, so it counts as this phone's latest stock change.
+    _commitPendingStock();
+
+    final history = _unionBy(
+      [..._history, ...b.history],
+      (r) => '${r.started.toIso8601String()}|${r.ended.toIso8601String()}',
+    )..sort((x, y) => y.ended.compareTo(x.ended));
+    final activity = _unionBy(
+      [..._activity, ...b.activity],
+      (a) => '${a.at.toIso8601String()}|${a.delta}|${a.label}|${a.note}',
+    )..sort((x, y) => y.at.compareTo(x.at));
+
+    final myLastChange = _newestAt(_activity);
+    final theirLastChange = _newestAt(b.activity);
+    if (myLastChange != null &&
+        (theirLastChange == null || myLastChange.isAfter(theirLastChange))) {
+      b.stock = _stock;
+    }
+
+    final mine = _session;
+    final theirs = b.session;
+    if (mine != null && (theirs == null || mine.startedAt.isAfter(theirs.startedAt))) {
+      b.session = mine;
+    }
+
+    final knownTypes = {
+      for (final t in [...PodTypePreset.builtIn, ...b.customPodTypes]) t.name.toLowerCase(),
+    };
+    b.customPodTypes
+        .addAll(_customPodTypes.where((t) => !knownTypes.contains(t.name.toLowerCase())));
+
+    b.history
+      ..clear()
+      ..addAll(history.take(_maxHistoryEntries));
+    b.activity
+      ..clear()
+      ..addAll(activity.take(_maxActivityEntries));
+    _applySnapshot(b);
+  }
+
+  /// [items] in order, keeping only the first of any that share a key.
+  static List<T> _unionBy<T>(Iterable<T> items, String Function(T) keyOf) {
+    final seen = <String>{};
+    return [for (final e in items) if (seen.add(keyOf(e))) e];
+  }
+
+  static DateTime? _newestAt(List<TrackedItemActivity> activity) => activity.isEmpty
+      ? null
+      : activity.map((a) => a.at).reduce((x, y) => x.isAfter(y) ? x : y);
+
+  /// Commits a fully parsed backup as the current state, all at once.
+  void _applySnapshot(_BackupSnapshot b) {
     _stockDebounce?.cancel();
     _stockDebounce = null;
     _pendingStockDelta = 0;
 
-    _stock = stock;
+    _stock = b.stock;
     _activity
       ..clear()
-      ..addAll(activity);
+      ..addAll(b.activity);
     _history
       ..clear()
-      ..addAll(history);
-    _session = session;
-    _defaultPodDurationHours = duration;
-    _lowStockThreshold = lowStock;
-    _podTypeName = podType;
-    _gracePeriodHours = grace;
-    _siteRotationReminder = siteRotation;
-    _enableNotifications = enableNotif;
-    _soundEnabled = sound;
-    _vibrationEnabled = vibration;
-    _criticalAlerts = critical;
-    _lowStockAlert = lowStockAlert;
-    _hidePreviews = hidePrev;
-    _quietHours = quiet;
-    _snoozeDuration = snooze;
+      ..addAll(b.history);
+    _session = b.session;
+    _defaultPodDurationHours = b.defaultPodDurationHours;
+    _lowStockThreshold = b.lowStockThreshold;
+    _podTypeName = b.podTypeName;
+    _gracePeriodHours = b.gracePeriodHours;
+    _siteRotationReminder = b.siteRotationReminder;
+    _enableNotifications = b.enableNotifications;
+    _soundEnabled = b.soundEnabled;
+    _vibrationEnabled = b.vibrationEnabled;
+    _criticalAlerts = b.criticalAlerts;
+    _lowStockAlert = b.lowStockAlert;
+    _hidePreviews = b.hidePreviews;
+    _quietHours = b.quietHours;
+    _snoozeDuration = b.snoozeDuration;
     _reminderHours
       ..clear()
-      ..addAll(reminderHours);
+      ..addAll(b.reminderHours);
     _rules
       ..clear()
-      ..addAll(rules);
+      ..addAll(b.rules);
     _customPodTypes
       ..clear()
-      ..addAll(customPodTypes);
-    _language = language;
-    _timeFormat = timeFormat;
-    _dateFormat = dateFormat;
+      ..addAll(b.customPodTypes);
+    _language = b.language;
+    _timeFormat = b.timeFormat;
+    _dateFormat = b.dateFormat;
     _syncFormats();
 
     _lowStockLatch = _stock <= _lowStockThreshold; // don't alert for pre-existing low stock
@@ -748,6 +801,7 @@ class PodController extends ChangeNotifier {
     _lowStockLatch = _stock <= _lowStockThreshold; // don't alert for pre-existing low stock
     if (_session != null) _startTicker();
     notifyListeners();
+    _loaded.complete();
     NotificationService.instance.sync(this); // schedule from restored rules
   }
 
@@ -1087,4 +1141,82 @@ class PodController extends ChangeNotifier {
     _tick.dispose();
     super.dispose();
   }
+}
+
+/// Every persisted [PodController] field, parsed out of a backup's `data`
+/// map. Parsing is all-or-nothing — a corrupt or hand-edited file throws here,
+/// before any current data is touched. A missing setting keeps [current]'s
+/// value, so older backups stay importable as settings are added; missing
+/// records (history, activity, pod in use) mean there are none. Mutable so
+/// [PodController.mergeFromBackupJson] can blend in this phone's records
+/// before the snapshot is applied.
+class _BackupSnapshot {
+  _BackupSnapshot.parse(Map<String, dynamic> j, PodController current)
+      : stock = j['stock'] as int? ?? current._stock,
+        activity = ((j['activity'] as List?) ?? const [])
+            .map((e) => TrackedItemActivity.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        history = ((j['history'] as List?) ?? const [])
+            .map((e) => SessionRecord.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        session = j['session'] == null
+            ? null
+            : PodSession.fromJson(j['session'] as Map<String, dynamic>),
+        defaultPodDurationHours =
+            j['defaultPodDurationHours'] as int? ?? current._defaultPodDurationHours,
+        lowStockThreshold = j['lowStockThreshold'] as int? ?? current._lowStockThreshold,
+        podTypeName = PodController._podTypeNameFrom(
+            j['podType'] as String? ?? current._podTypeName),
+        gracePeriodHours = j['gracePeriodHours'] as int? ?? current._gracePeriodHours,
+        siteRotationReminder =
+            j['siteRotationReminder'] as bool? ?? current._siteRotationReminder,
+        enableNotifications = j['enableNotifications'] as bool? ?? current._enableNotifications,
+        soundEnabled = j['soundEnabled'] as bool? ?? current._soundEnabled,
+        vibrationEnabled = j['vibrationEnabled'] as bool? ?? current._vibrationEnabled,
+        criticalAlerts = j['criticalAlerts'] as bool? ?? current._criticalAlerts,
+        lowStockAlert = j['lowStockAlert'] as bool? ?? current._lowStockAlert,
+        hidePreviews = j['hidePreviews'] as bool? ?? current._hidePreviews,
+        quietHours = j['quietHours'] as bool? ?? current._quietHours,
+        snoozeDuration = j['snoozeDuration'] as String? ?? current._snoozeDuration,
+        reminderHours = (j['reminderHours'] as List?)?.map((e) => e as int).toList() ??
+            List<int>.from(current._reminderHours),
+        // Settings lists: absent keeps this phone's (like the scalars above),
+        // but an explicit empty list in the file still means "none".
+        rules = j['rules'] == null
+            ? List.of(current._rules)
+            : (j['rules'] as List)
+                .map((e) => NotificationRule.fromJson(e as Map<String, dynamic>))
+                .toList(),
+        customPodTypes = j['customPodTypes'] == null
+            ? List.of(current._customPodTypes)
+            : (j['customPodTypes'] as List)
+                .map((e) => PodTypePreset.fromJson(e as Map<String, dynamic>))
+                .toList(),
+        language = j['language'] as String? ?? current._language,
+        timeFormat = j['timeFormat'] as String? ?? current._timeFormat,
+        dateFormat = j['dateFormat'] as String? ?? current._dateFormat;
+
+  int stock;
+  final List<TrackedItemActivity> activity;
+  final List<SessionRecord> history;
+  PodSession? session;
+  final int defaultPodDurationHours;
+  final int lowStockThreshold;
+  final String podTypeName;
+  final int gracePeriodHours;
+  final bool siteRotationReminder;
+  final bool enableNotifications;
+  final bool soundEnabled;
+  final bool vibrationEnabled;
+  final bool criticalAlerts;
+  final bool lowStockAlert;
+  final bool hidePreviews;
+  final bool quietHours;
+  final String snoozeDuration;
+  final List<int> reminderHours;
+  final List<NotificationRule> rules;
+  final List<PodTypePreset> customPodTypes;
+  final String language;
+  final String timeFormat;
+  final String dateFormat;
 }
