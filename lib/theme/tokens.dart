@@ -52,6 +52,8 @@ abstract final class AppText {
       fontFamily: _family, fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.slate, letterSpacing: 0.8);
   static const TextStyle caption =
       TextStyle(fontFamily: _family, fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.slate);
+  static const TextStyle navLabel = TextStyle(
+      fontFamily: _family, fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.navy, height: 1.1);
   static const TextStyle statLabel = TextStyle(
       fontFamily: _family, fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.slate, letterSpacing: 0.6);
   static const TextStyle statValue =

@@ -111,13 +111,21 @@ class _WavePainter extends CustomPainter {
 }
 
 // ===========================================================================
-// Bottom navigation bar (Home selected; other tabs inert for now).
+// Bottom navigation bar — labelled icons; the selected tab pops up over the
+// bar's top edge.
 // ===========================================================================
 
-class HomeBottomBar extends StatelessWidget {
+/// Every bottom-tab screen owns its own [HomeBottomBar] (they all stay
+/// mounted in `RootShell`'s `IndexedStack`), so the bar that was tapped is
+/// hidden the moment the tab switches. The *destination* bar therefore plays
+/// the transition: it listens to [tabs] and, when its own tab becomes
+/// current, animates that tab jumping up while the one just left settles
+/// back down — picking up where the tapped bar's picture left off.
+class HomeBottomBar extends StatefulWidget {
   const HomeBottomBar({
     super.key,
     this.selectedIndex = 0,
+    this.tabs,
     this.onInactiveTap,
     this.onAddTap,
     this.onHomeTap,
@@ -126,13 +134,24 @@ class HomeBottomBar extends StatelessWidget {
     this.onSettingsTap,
   });
 
+  /// The bar's height above the system's bottom inset: 64px items plus 12px
+  /// padding above and below. Popups opened from the bar float just above it.
+  static const double height = _itemExtent + 2 * _verticalPadding;
+  static const double _itemExtent = 64;
+  static const double _verticalPadding = 12;
+
   /// Which tab is highlighted: 0 = Home, 1 = Stock, 3 = History, 4 = Settings.
   final int selectedIndex;
 
+  /// The shared tab state. When it switches to [selectedIndex] this bar plays
+  /// the jump animation; without it the selected tab simply sits raised.
+  final RootTabController? tabs;
+
   final VoidCallback? onInactiveTap;
 
-  /// Tapping the center `+` opens the "Start New Pod" sheet.
-  final VoidCallback? onAddTap;
+  /// Tapping the center `+` opens the "Start New Pod" sheet. The `+` stays
+  /// raised until the returned future completes, i.e. the sheet closes.
+  final Future<void> Function()? onAddTap;
 
   /// Tapping the Home / Stock / History / Settings tabs (when not selected).
   final VoidCallback? onHomeTap;
@@ -140,26 +159,196 @@ class HomeBottomBar extends StatelessWidget {
   final VoidCallback? onHistoryTap;
   final VoidCallback? onSettingsTap;
 
-  Widget _item(IconData icon, {bool selected = false, double size = 28, VoidCallback? onTap}) {
-    if (selected) {
-      return Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          color: AppColors.cyan.withValues(alpha: 0.55),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Icon(icon, size: 30, color: AppColors.navy),
-      );
+  @override
+  State<HomeBottomBar> createState() => _HomeBottomBarState();
+}
+
+class _HomeBottomBarState extends State<HomeBottomBar> with TickerProviderStateMixin {
+  /// How far the selected tab rises — enough for its highlight box to poke
+  /// about 4px out over the bar's top edge.
+  static const double _lift = 16;
+
+  /// Every motion in the bar is one short, soft ease-in-out slide. The curve
+  /// is symmetric, so settling back (or reversing mid-way) looks the same.
+  static const Duration _duration = Duration(milliseconds: 250);
+  static const Curve _curve = Curves.easeInOut;
+
+  /// The tab whose bar was just tapped, i.e. the one showing raised. Set only
+  /// while the tap callback runs (it switches tabs synchronously), so the
+  /// destination bar settles *that* tab back down. It can differ from the old
+  /// [RootTabController.index]: Stock pushed from Home's stock row shows
+  /// Stock raised while the index is still Home.
+  static int? _tappedFrom;
+
+  /// 0 → 1 as the selected tab rises (and the previous one settles).
+  late final AnimationController _raise;
+
+  /// 0 → 1 as the center `+` rises when tapped. It stays up while the Start
+  /// New Pod popup is open and settles back down once the popup closes.
+  late final AnimationController _addRaise;
+
+  late final Listenable _animation;
+
+  /// The tab settling back down while [_raise] runs.
+  int? _previousIndex;
+
+  /// Last seen [RootTabController.index], to know which tab we came from.
+  late int _lastTabIndex;
+
+  bool _reduceMotion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Starts finished: a bar shown for the first time has its tab already
+    // raised, without a jump.
+    _raise = AnimationController(vsync: this, duration: _duration, value: 1);
+    _addRaise = AnimationController(vsync: this, duration: _duration);
+    _animation = Listenable.merge([_raise, _addRaise]);
+    _lastTabIndex = widget.tabs?.index ?? widget.selectedIndex;
+    widget.tabs?.addListener(_onTabChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+  }
+
+  @override
+  void didUpdateWidget(HomeBottomBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tabs != widget.tabs) {
+      oldWidget.tabs?.removeListener(_onTabChanged);
+      widget.tabs?.addListener(_onTabChanged);
+      _lastTabIndex = widget.tabs?.index ?? widget.selectedIndex;
     }
+  }
+
+  @override
+  void dispose() {
+    widget.tabs?.removeListener(_onTabChanged);
+    _raise.dispose();
+    _addRaise.dispose();
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    final now = widget.tabs!.index;
+    final before = _lastTabIndex;
+    _lastTabIndex = now;
+    if (now != widget.selectedIndex || now == before) return;
+    setState(() => _previousIndex = _tappedFrom ?? before);
+    if (_reduceMotion) {
+      _raise.value = 1;
+    } else {
+      _raise.forward(from: 0);
+    }
+  }
+
+  void _onTabTap(VoidCallback onTap) {
+    _tappedFrom = widget.selectedIndex;
+    onTap();
+    _tappedFrom = null;
+  }
+
+  /// Raises the `+` while its popup is open, then settles it back down.
+  Future<void> _onAddTap() async {
+    final onAddTap = widget.onAddTap;
+    if (onAddTap == null) {
+      widget.onInactiveTap?.call();
+      return;
+    }
+    _setAddRaised(true);
+    try {
+      await onAddTap();
+    } finally {
+      if (mounted) _setAddRaised(false);
+    }
+  }
+
+  void _setAddRaised(bool raised) {
+    if (_reduceMotion) {
+      _addRaise.value = raised ? 1 : 0;
+    } else if (raised) {
+      _addRaise.forward();
+    } else {
+      _addRaise.reverse();
+    }
+  }
+
+  /// One nav item: icon over label in a 64×64 box. [raised] (0 → 1) slides it
+  /// up and fades in the cyan selected box and its shadow.
+  Widget _item({
+    required IconData icon,
+    required String label,
+    double iconSize = 28,
+    double raised = 0,
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap ?? onInactiveTap,
-      child: SizedBox(
-        width: 64,
-        height: 64,
-        child: Icon(icon, size: size, color: AppColors.navy),
+      onTap: onTap,
+      child: Transform.translate(
+        offset: Offset(0, -_lift * raised),
+        child: Container(
+          width: HomeBottomBar._itemExtent,
+          height: HomeBottomBar._itemExtent,
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.cyan.withValues(alpha: 0.55 * raised),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: raised == 0
+                ? null
+                : [
+                    BoxShadow(
+                      color: AppColors.navy.withValues(alpha: 0.18 * raised),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: iconSize, color: AppColors.navy),
+              const SizedBox(height: 2),
+              // Shrinks rather than overflows at large text sizes.
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(label, style: AppText.navLabel, maxLines: 1),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+
+  Widget _tab(int index, IconData icon, String label, VoidCallback? onTap) {
+    final t = _curve.transform(_raise.value);
+    final selected = index == widget.selectedIndex;
+    // The selected tab rises and stays up; the one just left settles back.
+    final raised = selected ? t : (index == _previousIndex ? 1 - t : 0.0);
+    final tap = onTap ?? widget.onInactiveTap;
+    return _item(
+      icon: icon,
+      label: label,
+      raised: raised,
+      onTap: selected || tap == null ? null : () => _onTabTap(tap),
+    );
+  }
+
+  Widget _addButton() {
+    return _item(
+      icon: Icons.add_rounded,
+      label: 'Add',
+      iconSize: 32,
+      // Rises and lights up like a selected tab while its popup is open.
+      raised: _curve.transform(_addRaise.value),
+      onTap: _onAddTap,
     );
   }
 
@@ -180,16 +369,23 @@ class HomeBottomBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _item(Icons.home_rounded, selected: selectedIndex == 0, onTap: onHomeTap),
-              _item(Icons.inventory_2_outlined, selected: selectedIndex == 1, onTap: onStockTap),
-              _item(Icons.add_rounded, size: 32, onTap: onAddTap),
-              _item(Icons.history_rounded, selected: selectedIndex == 3, onTap: onHistoryTap),
-              _item(Icons.settings_outlined, selected: selectedIndex == 4, onTap: onSettingsTap),
-            ],
+          padding: const EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: HomeBottomBar._verticalPadding,
+          ),
+          // Only the row of items rebuilds on each animation frame.
+          child: AnimatedBuilder(
+            animation: _animation,
+            builder: (context, _) => Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _tab(0, Icons.home_rounded, 'Home', widget.onHomeTap),
+                _tab(1, Icons.inventory_2_outlined, 'Stock', widget.onStockTap),
+                _addButton(),
+                _tab(3, Icons.history_rounded, 'History', widget.onHistoryTap),
+                _tab(4, Icons.settings_outlined, 'Settings', widget.onSettingsTap),
+              ],
+            ),
           ),
         ),
       ),

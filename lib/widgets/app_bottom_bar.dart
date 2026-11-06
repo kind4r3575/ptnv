@@ -34,6 +34,7 @@ Widget appBottomBar(
 
   return HomeBottomBar(
     selectedIndex: currentIndex,
+    tabs: tabs,
     onAddTap: onAddTap,
     onHomeTap: () => goTo(0),
     onStockTap: () => goTo(1),

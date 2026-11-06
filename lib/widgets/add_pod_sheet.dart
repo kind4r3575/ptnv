@@ -1,21 +1,34 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../state/pod.dart';
 import '../theme/tokens.dart';
 import 'confirm_dialog.dart';
+import 'home_parts.dart';
 import 'sheet_parts.dart';
 import 'start_time_picker_sheet.dart';
 
-/// Slides the "Start New Pod" sheet up over a scrim. Mirrors Figma node
-/// `164:65` — pick an insertion site and start a pod from the bottom bar's `+`.
+/// Slides the "Start New Pod" card up over a scrim to float just above the
+/// bottom bar. Mirrors Figma node `164:65` — pick an insertion site and start
+/// a pod from the bottom bar's `+`.
 /// Resolves to `'stock'` if the user tapped "Go to Stock" (out of stock), so
 /// the caller can switch to the Stock tab; otherwise `null`.
 Future<String?> showAddPodSheet(BuildContext context, PodController controller) {
   return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
+    // Keeps the raised card below the status bar on short screens.
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     barrierColor: AppColors.navy.withValues(alpha: 0.45),
+    // One short, soft ease-in-out slide each way, matching the bottom bar.
+    sheetAnimationStyle: const AnimationStyle(
+      duration: Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      reverseDuration: Duration(milliseconds: 250),
+      reverseCurve: Curves.easeInOut,
+    ),
     builder: (_) => AddPodSheet(controller: controller),
   );
 }
@@ -96,11 +109,17 @@ class _AddPodSheetState extends State<AddPodSheet> {
     final start = _start;
     final outOfStock = widget.controller.stock <= 0;
 
+    // Float just above the bottom nav bar (and the system inset under it), so
+    // the dimmed bar with its raised + shows below the card — or above the
+    // keyboard, should one ever be open.
+    final aboveNavBar = HomeBottomBar.height + MediaQuery.paddingOf(context).bottom;
+    final bottom = math.max(MediaQuery.viewInsetsOf(context).bottom, aboveNavBar);
+
     return Padding(
       padding: EdgeInsets.only(
         left: 14,
         right: 14,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 14,
+        bottom: bottom + 14,
         top: 14,
       ),
       child: Material(

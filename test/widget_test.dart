@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ptnv/main.dart';
 import 'package:ptnv/state/pod.dart';
+import 'package:ptnv/widgets/home_parts.dart';
 
 void main() {
   final start = DateTime(2026, 5, 31, 20, 17);
@@ -299,7 +300,8 @@ void main() {
 
     testWidgets('History tab opens the Log with seeded session cards', (tester) async {
       await openHistory(tester);
-      expect(find.text('History'), findsOneWidget);
+      // Title only — the bottom bar's "History" label is a second match.
+      expect(find.widgetWithText(AppBarWave, 'History'), findsOneWidget);
       expect(find.text('Jun 5, 2026'), findsOneWidget);
       expect(find.text('Ended early'), findsOneWidget);
       expect(find.text('12h 30m'), findsOneWidget);
@@ -324,7 +326,7 @@ void main() {
 
     testWidgets('Settings tab opens the screen with its sections', (tester) async {
       await openSettings(tester);
-      expect(find.text('Settings'), findsOneWidget);
+      expect(find.widgetWithText(AppBarWave, 'Settings'), findsOneWidget);
       expect(find.text('Pod Settings'), findsOneWidget);
       expect(find.text('Default Pod Duration'), findsOneWidget);
       expect(find.text('Grace Period'), findsOneWidget);
@@ -353,7 +355,7 @@ void main() {
 
     testWidgets('bottom bar cross-navigates from Settings to Stock', (tester) async {
       await openSettings(tester);
-      expect(find.text('Settings'), findsOneWidget);
+      expect(find.widgetWithText(AppBarWave, 'Settings'), findsOneWidget);
 
       // Tap the Stock tab in the bottom bar (the bar icon is the last one).
       await tester.tap(find.byIcon(Icons.inventory_2_outlined).last);
