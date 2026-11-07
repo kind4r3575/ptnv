@@ -34,9 +34,7 @@ class EndPodSheet extends StatefulWidget {
 }
 
 class _EndPodSheetState extends State<EndPodSheet> {
-  static const List<String> _reasons = [
-    'Planned', 'Blockage', 'Irritation', 'Leak', 'Ran low', 'Other',
-  ];
+  static const List<String> _reasons = SessionRecord.changeReasons;
 
   String? _reason; // null until the user picks a reason — required to end
   bool _useNow = true;

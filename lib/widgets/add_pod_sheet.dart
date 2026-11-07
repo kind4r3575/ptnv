@@ -48,9 +48,7 @@ class AddPodSheet extends StatefulWidget {
 }
 
 class _AddPodSheetState extends State<AddPodSheet> {
-  static const List<String> _sites = [
-    'Abdomen', 'Left arm', 'Right arm', 'Lower back', 'Left thigh', 'Right thigh',
-  ];
+  static const List<String> _sites = PodSession.insertionSites;
 
   String? _selectedSite; // null until the user picks a site — required to start
   bool _useNow = true;

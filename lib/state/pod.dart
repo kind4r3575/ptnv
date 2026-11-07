@@ -33,6 +33,12 @@ class PodSession extends TrackedItemSession {
   static const int defaultDurationHours = 72;
   static const int defaultGraceHours = 8;
 
+  /// The insertion sites offered on the Add Pod sheet and when editing a past
+  /// session's PLACED ON.
+  static const List<String> insertionSites = [
+    'Abdomen', 'Left arm', 'Right arm', 'Lower back', 'Left thigh', 'Right thigh',
+  ];
+
   Map<String, dynamic> toJson() => {
         'startedAt': startedAt.toIso8601String(),
         'site': site,
@@ -55,6 +61,7 @@ enum HistoryOutcome { completed, endedEarly, wornTooLong }
 @immutable
 class SessionRecord {
   const SessionRecord({
+    this._id,
     required this.date,
     required this.outcome,
     required this.started,
@@ -65,7 +72,23 @@ class SessionRecord {
     required this.remindersSent,
     required this.changes,
     this.plannedHours = PodSession.defaultDurationHours,
+    this.graceHours,
+    this.edited = false,
   });
+
+  /// The reasons offered on the End Pod sheet and when editing a past
+  /// session's WHY CHANGED.
+  static const List<String> changeReasons = [
+    'Planned', 'Blockage', 'Irritation', 'Leak', 'Ran low', 'Other',
+  ];
+
+  final String? _id;
+
+  /// Stable identity that survives edits, so a backup merge still sees an
+  /// edited session as the same one instead of adding it twice. Falls back
+  /// to the original start|end timestamps, which is the key merges always
+  /// used, so records saved before this field existed keep matching.
+  String get id => _id ?? '${started.toIso8601String()}|${ended.toIso8601String()}';
 
   final DateTime date; // card title (the day it ended)
   final HistoryOutcome outcome;
@@ -80,9 +103,98 @@ class SessionRecord {
   /// Planned wear time for this session (the pod's rated hours at start).
   final int plannedHours;
 
+  /// The pod's grace window (hours) when it ended, kept so [outcome] can be
+  /// worked out again after its times are edited. Null on records saved
+  /// before this was stored.
+  final int? graceHours;
+
+  /// Whether the user changed this session by hand after it was recorded.
+  final bool edited;
+
   Duration get planned => Duration(hours: plannedHours);
 
+  /// The badge for a pod worn from [started] to [ended]: ended early before
+  /// [plannedHours], completed within the grace window after it, worn too
+  /// long past that. The same rule `endPod` applies through
+  /// [PodSession.statusAt].
+  static HistoryOutcome outcomeFor({
+    required DateTime started,
+    required DateTime ended,
+    required int plannedHours,
+    required int graceHours,
+  }) {
+    final session =
+        PodSession(startedAt: started, durationHours: plannedHours, graceHours: graceHours);
+    return switch (session.statusAt(ended)) {
+      TrackedItemStatus.onTrack => HistoryOutcome.endedEarly,
+      TrackedItemStatus.grace => HistoryOutcome.completed,
+      TrackedItemStatus.late => HistoryOutcome.wornTooLong,
+    };
+  }
+
+  /// "+3h 30m" / "-3h 30m" / "None": how far actual wear time differed from
+  /// what the pod was planned for, shown in the History card's CHANGES field.
+  static String formatChanges(Duration worn, Duration planned) {
+    final delta = worn - planned;
+    if (delta.inMinutes.abs() < 1) return 'None';
+    return '${delta.isNegative ? '-' : '+'}${fmtHm(delta.abs())}';
+  }
+
+  /// A copy with the given user-editable fields changed. When a time or the
+  /// planned hours change, everything worked out from them (WORN, the badge,
+  /// CHANGES and the date title) is recalculated so the card still adds up.
+  /// Otherwise those stored values are kept as they are, so changing just the
+  /// site or reason never moves the badge.
+  ///
+  /// [fallbackGraceHours] stands in for [graceHours] on older records that
+  /// never stored one; it's then saved onto the copy.
+  SessionRecord withEdits({
+    DateTime? started,
+    DateTime? ended,
+    int? plannedHours,
+    String? placedOn,
+    String? whyChanged,
+    int? remindersSent,
+    bool? edited,
+    required int fallbackGraceHours,
+  }) {
+    final s = started ?? this.started;
+    final e = ended ?? this.ended;
+    final planned = plannedHours ?? this.plannedHours;
+    final timingChanged = s != this.started || e != this.ended || planned != this.plannedHours;
+    final grace = graceHours ?? (timingChanged ? fallbackGraceHours : null);
+    final rawWorn = e.difference(s);
+    final newWorn = rawWorn.isNegative ? Duration.zero : rawWorn;
+    return SessionRecord(
+      id: id,
+      date: timingChanged ? e : date,
+      outcome: timingChanged
+          ? outcomeFor(started: s, ended: e, plannedHours: planned, graceHours: grace!)
+          : outcome,
+      started: s,
+      ended: e,
+      worn: timingChanged ? newWorn : worn,
+      placedOn: placedOn ?? this.placedOn,
+      whyChanged: whyChanged ?? this.whyChanged,
+      remindersSent: remindersSent ?? this.remindersSent,
+      changes: timingChanged ? formatChanges(newWorn, Duration(hours: planned)) : changes,
+      plannedHours: planned,
+      graceHours: grace,
+      edited: edited ?? this.edited,
+    );
+  }
+
+  /// Whether every user-editable field matches [other]'s.
+  bool hasSameEditsAs(SessionRecord other) =>
+      started == other.started &&
+      ended == other.ended &&
+      plannedHours == other.plannedHours &&
+      placedOn == other.placedOn &&
+      whyChanged == other.whyChanged &&
+      remindersSent == other.remindersSent;
+
   Map<String, dynamic> toJson() => {
+        'id': id,
         'date': date.toIso8601String(),
         'outcome': outcome.name,
         'started': started.toIso8601String(),
@@ -93,9 +205,12 @@ class SessionRecord {
         'remindersSent': remindersSent,
         'changes': changes,
         'plannedHours': plannedHours,
+        if (graceHours != null) 'graceHours': graceHours,
+        'edited': edited,
       };
 
   factory SessionRecord.fromJson(Map<String, dynamic> j) => SessionRecord(
+        id: j['id'] as String?,
         date: DateTime.parse(j['date'] as String),
         outcome: HistoryOutcome.values.firstWhere(
           (e) => e.name == j['outcome'],
@@ -109,6 +224,8 @@ class SessionRecord {
         remindersSent: j['remindersSent'] as int,
         changes: j['changes'] as String,
         plannedHours: j['plannedHours'] as int? ?? PodSession.defaultDurationHours,
+        graceHours: j['graceHours'] as int?,
+        edited: j['edited'] as bool? ?? false,
       );
 }
 
@@ -594,6 +711,50 @@ class PodController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Saves the History screen's edit of [original]: [updated] (built with
+  /// [SessionRecord.withEdits]) takes its place, marked as edited. Does nothing
+  /// if no user-editable field actually changed, or if [original] is no longer
+  /// in the history.
+  ///
+  /// If the end time moved, the record also moves so the list stays newest
+  /// first, which is what [lastUsedSite] relies on. Every other record keeps
+  /// its place.
+  void updateHistoryRecord(SessionRecord original, SessionRecord updated) {
+    final i = _history.indexWhere((r) => identical(r, original));
+    if (i < 0 || original.hasSameEditsAs(updated)) return;
+    final record = updated.withEdits(edited: true, fallbackGraceHours: _gracePeriodHours);
+    _history.removeAt(i);
+    if (record.ended == original.ended) {
+      _history.insert(i, record);
+    } else {
+      final at = _history.indexWhere((r) => r.ended.isBefore(record.ended));
+      _history.insert(at < 0 ? _history.length : at, record);
+    }
+    notifyListeners();
+  }
+
+  /// Removes [record] from the history (swipe-to-delete) and returns the
+  /// index it was at, so [restoreHistoryRecord] can put it back in the same
+  /// place. Returns -1 if it wasn't there.
+  int deleteHistoryRecord(SessionRecord record) {
+    final i = _history.indexWhere((r) => identical(r, record));
+    if (i < 0) return -1;
+    _history.removeAt(i);
+    notifyListeners();
+    return i;
+  }
+
+  /// Undoes [deleteHistoryRecord]: puts [record] back at [index], or as
+  /// close to it as the list now allows.
+  void restoreHistoryRecord(SessionRecord record, int index) {
+    if (_history.any((r) => identical(r, record))) return;
+    _history.insert(index.clamp(0, _history.length), record);
+    if (_history.length > _maxHistoryEntries) {
+      _history.removeRange(_maxHistoryEntries, _history.length);
+    }
+    notifyListeners();
+  }
+
   /// Reset every Pod / Notification / Language setting to its factory default
   /// (the "Reset to Defaults" action). Stock, activity and history are kept.
   void resetToDefaults() {
@@ -694,10 +855,10 @@ class PodController extends ChangeNotifier {
     // Log any −/+ burst first, so it counts as this phone's latest stock change.
     _commitPendingStock();
 
-    final history = _unionBy(
-      [..._history, ...b.history],
-      (r) => '${r.started.toIso8601String()}|${r.ended.toIso8601String()}',
-    )..sort((x, y) => y.ended.compareTo(x.ended));
+    // Keyed by id, which survives edits, so a session edited on one side is
+    // still recognised as the same session (this phone's copy wins).
+    final history = _unionBy([..._history, ...b.history], (r) => r.id)
+      ..sort((x, y) => y.ended.compareTo(x.ended));
     final activity = _unionBy(
       [..._activity, ...b.activity],
       (a) => '${a.at.toIso8601String()}|${a.delta}|${a.label}|${a.note}',
@@ -1037,14 +1198,6 @@ class PodController extends ChangeNotifier {
     return count;
   }
 
-  /// "+3h 30m" / "-3h 30m" / "None" — how far actual wear time differed from
-  /// what the pod was planned for, shown in the History card's CHANGES field.
-  String _formatChanges(Duration worn, Duration planned) {
-    final delta = worn - planned;
-    if (delta.inMinutes.abs() < 1) return 'None';
-    return '${delta.isNegative ? '-' : '+'}${fmtHm(delta.abs())}';
-  }
-
   /// End the current pod → Home shows the "No Active Pod" state.
   ///
   /// Records the finished session at the top of [history]. [endedAt] defaults to
@@ -1072,8 +1225,9 @@ class PodController extends ChangeNotifier {
       placedOn: session.site,
       whyChanged: reason,
       remindersSent: _remindersFiredFor(session, end),
-      changes: _formatChanges(wornClamped, session.totalDuration),
+      changes: SessionRecord.formatChanges(wornClamped, session.totalDuration),
       plannedHours: session.durationHours,
+      graceHours: session.graceHours,
     ));
     _session = null;
     _ticker?.cancel();
